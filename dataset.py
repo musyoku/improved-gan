@@ -14,9 +14,8 @@ def load_binary_images(image_dir):
 		dataset.append(img)
 		f.close()
 		i += 1
-		if i % 100 == 0:
-			sys.stdout.write("\rloading images...({:d} / {:d})".format(i, len(fs)))
-			sys.stdout.flush()
+		if i % 100 == 0 or i == len(fs) - 1:
+			sys.stdout.write("\rloading images...({} / {})".format(i, len(fs)))
 	sys.stdout.write("\n")
 	return dataset
 
@@ -30,8 +29,8 @@ def load_rgb_images(image_dir):
 		dataset.append(img)
 		f.close()
 		i += 1
-		if i % 100 == 0:
-			sys.stdout.write("\rloading images...({:d} / {:d})".format(i, len(fs)))
+		if i % 100 == 0 or i == len(fs):
+			sys.stdout.write("\rloading images...({} / {})".format(i, len(fs)))
 			sys.stdout.flush()
 	sys.stdout.write("\n")
 	return dataset
@@ -46,8 +45,8 @@ def load_rgba_images(image_dir, is_grayscale=True):
 		dataset.append(img)
 		f.close()
 		i += 1
-		if i % 100 == 0:
-			sys.stdout.write("\rloading images...({:d} / {:d})".format(i, len(fs)))
+		if i % 100 == 0 or i == len(fs):
+			sys.stdout.write("\rloading images...({} / {})".format(i, len(fs)))
 			sys.stdout.flush()
 	sys.stdout.write("\n")
 	return dataset

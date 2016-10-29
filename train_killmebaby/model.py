@@ -1,69 +1,149 @@
 # -*- coding: utf-8 -*-
-import json, os, sys, math
+import math
+import json, os, sys
 from args import args
 sys.path.append(os.path.split(os.getcwd())[0])
-from dcdgm import DCDGM, Params
+from params import Params
+from ddgm import DDGM, EnergyModelParams, GenerativeModelParams, DeepEnergyModel, DeepGenerativeModel
+from sequential import Sequential
+from sequential.link import Linear, BatchNormalization, Deconvolution2D, Convolution2D
+from sequential.function import Activation, dropout, gaussian_noise, tanh, sigmoid, reshape
+from sequential.util import get_conv_padding, get_paddings_of_deconv_layers, get_in_size_of_deconv_layers
 
 # load params.json
 try:
 	os.mkdir(args.model_dir)
 except:
 	pass
-filename = args.model_dir + "/params.json"
-if os.path.isfile(filename):
-	print "loading", filename
-	f = open(filename)
-	try:
-		dict = json.load(f)
-		params = Params(dict)
-	except:
-		raise Exception("could not load {}".format(filename))
 
-	params.gpu_enabled = True if args.gpu_enabled == 1 else False
+# data
+image_width = 64
+image_height = image_width
+ndim_latent_code = 10
+
+# specify energy model
+energy_model_filename = args.model_dir + "/energy_model.json"
+
+if os.path.isfile(energy_model_filename):
+	print "loading", energy_model_filename
+	with open(energy_model_filename, "r") as f:
+		try:
+			params = json.load(f)
+		except Exception as e:
+			raise Exception("could not load {}".format(energy_model_filename))
 else:
-	params = Params()
-	params.x_width = 64
-	params.x_height = params.x_width
-	params.x_channels = 3
-	params.ndim_z = 100
-	params.apply_dropout = False
-	params.distribution_x = "tanh"	# universal or sigmoid or tanh
+	config = EnergyModelParams()
+	config.num_experts = 128
+	config.weight_init_std = 0.05
+	config.weight_initializer = "Normal"
+	config.use_weightnorm = False
+	config.nonlinearity = "elu"
+	config.optimizer = "Adam"
+	config.learning_rate = 0.0002
+	config.momentum = 0.5
+	config.gradient_clipping = 10
+	config.weight_decay = 0
 
-	params.energy_model_num_experts = 1024
-	params.energy_model_feature_extractor_hidden_channels = [64, 128, 256, 512]
-	params.energy_model_feature_extractor_stride = 2
-	params.energy_model_feature_extractor_ksize = 4
-	params.energy_model_batchnorm_to_input = False
-	params.energy_model_batchnorm_before_activation = False
-	params.energy_model_batchnorm_enabled = False
-	params.energy_model_wscale = math.sqrt(0.02)
-	params.energy_model_activation_function = "elu"
-	params.energy_model_optimizer = "Adam"
-	params.energy_model_learning_rate = 0.0001
-	params.energy_model_momentum = 0.5
-	params.energy_model_gradient_clipping = 10
-	params.energy_model_weight_decay = 0.00002
+	# feature extractor
+	feature_extractor = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
+	feature_extractor.add(Convolution2D(3, 32, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	feature_extractor.add(Activation(config.nonlinearity))
+	feature_extractor.add(BatchNormalization(32))
+	feature_extractor.add(dropout())
+	feature_extractor.add(Convolution2D(32, 96, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	feature_extractor.add(Activation(config.nonlinearity))
+	feature_extractor.add(BatchNormalization(96))
+	feature_extractor.add(dropout())
+	feature_extractor.add(Convolution2D(96, 256, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	feature_extractor.add(Activation(config.nonlinearity))
+	feature_extractor.add(BatchNormalization(256))
+	feature_extractor.add(dropout())
+	feature_extractor.add(Convolution2D(256, 1024, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	feature_extractor.add(tanh())
+	feature_extractor.build()
 
-	params.generative_model_hidden_channels = [512, 256, 128, 64]
-	params.generative_model_stride = 2
-	params.generative_model_ksize = 4
-	params.generative_model_batchnorm_to_input = False
-	params.generative_model_batchnorm_before_activation = True
-	params.generative_model_batchnorm_enabled = True
-	params.generative_model_wscale = math.sqrt(0.02)
-	params.generative_model_activation_function = "relu"
-	params.generative_model_optimizer = "Adam"
-	params.generative_model_learning_rate = 0.0001
-	params.generative_model_momentum = 0.1
-	params.generative_model_gradient_clipping = 10
-	params.generative_model_weight_decay = 0.00002
+	# experts
+	experts = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
+	experts.add(Linear(None, config.num_experts, use_weightnorm=config.use_weightnorm))
+	experts.build()
 
-	params.gpu_enabled = True if args.gpu_enabled == 1 else False
+	# b
+	b = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
+	b.add(Linear(None, 1, nobias=True))
+	b.build()
 
-	params.check()
-	with open(filename, "w") as f:
-		json.dump(params.to_dict(), f, indent=4)
+	params = {
+		"config": config.to_dict(),
+		"feature_extractor": feature_extractor.to_dict(),
+		"experts": experts.to_dict(),
+		"b": b.to_dict(),
+	}
 
-params.dump()
-dcdgm = DCDGM(params)
-dcdgm.load(args.model_dir)
+	with open(energy_model_filename, "w") as f:
+		json.dump(params, f, indent=4, sort_keys=True, separators=(',', ': '))
+
+params_energy_model = params
+
+# specify generative model
+generative_model_filename = args.model_dir + "/generative_model.json"
+
+if os.path.isfile(generative_model_filename):
+	print "loading", generative_model_filename
+	with open(generative_model_filename, "r") as f:
+		try:
+			params = json.load(f)
+		except:
+			raise Exception("could not load {}".format(generative_model_filename))
+else:
+	config = GenerativeModelParams()
+	config.ndim_input = ndim_latent_code
+	config.distribution_output = "sigmoid"
+	config.use_weightnorm = False
+	config.weight_init_std = 0.05
+	config.weight_initializer = "Normal"
+	config.nonlinearity = "relu"
+	config.optimizer = "Adam"
+	config.learning_rate = 0.0002
+	config.momentum = 0.5
+	config.gradient_clipping = 10
+	config.weight_decay = 0
+
+	# model
+	# compute projection width
+	input_size = get_in_size_of_deconv_layers(image_width, num_layers=3, ksize=4, stride=2)
+	# compute required paddings
+	paddings = get_paddings_of_deconv_layers(image_width, num_layers=3, ksize=4, stride=2)
+
+	model = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
+	model.add(Linear(config.ndim_input, 512 * input_size ** 2, use_weightnorm=config.use_weightnorm))
+	model.add(Activation(config.nonlinearity))
+	model.add(BatchNormalization(512 * input_size ** 2))
+	model.add(reshape((-1, 512, input_size, input_size)))
+	model.add(Deconvolution2D(512, 256, ksize=4, stride=2, pad=paddings.pop(0), use_weightnorm=config.use_weightnorm))
+	model.add(Activation(config.nonlinearity))
+	model.add(BatchNormalization(256))
+	model.add(Deconvolution2D(256, 128, ksize=4, stride=2, pad=paddings.pop(0), use_weightnorm=config.use_weightnorm))
+	model.add(Activation(config.nonlinearity))
+	model.add(BatchNormalization(128))
+	model.add(Deconvolution2D(128, 3, ksize=4, stride=2, pad=paddings.pop(0), use_weightnorm=config.use_weightnorm))
+	if config.distribution_output == "sigmoid":
+		model.add(sigmoid())
+	if config.distribution_output == "tanh":
+		model.add(tanh())
+	model.build()
+
+	params = {
+		"config": config.to_dict(),
+		"model": model.to_dict(),
+	}
+
+	with open(generative_model_filename, "w") as f:
+		json.dump(params, f, indent=4, sort_keys=True, separators=(',', ': '))
+
+params_generative_model = params
+
+ddgm = DDGM(params_energy_model, params_generative_model)
+ddgm.load(args.model_dir)
+
+if args.gpu_enabled == 1:
+	ddgm.to_gpu()

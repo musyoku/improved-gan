@@ -4,8 +4,7 @@ import json, os, sys
 from args import args
 sys.path.append(os.path.split(os.getcwd())[0])
 from params import Params
-from gan import GAN, DiscriminatorParams, GeneratorParams, Discriminator, Generator
-from sequential import Sequential
+from gan import GAN, DiscriminatorParams, GeneratorParams, Discriminator, Generator, Sequential
 from sequential.link import Linear, BatchNormalization, Deconvolution2D, Convolution2D, MinibatchDiscrimination
 from sequential.function import Activation, dropout, gaussian_noise, tanh, sigmoid, reshape, reshape_1d
 from sequential.util import get_conv_padding, get_paddings_of_deconv_layers, get_in_size_of_deconv_layers

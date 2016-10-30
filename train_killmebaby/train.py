@@ -41,7 +41,7 @@ def main():
 	n_trains_per_epoch = 500
 	batchsize_true = 128
 	batchsize_fake = 128
-	plot_interval = 30
+	plot_interval = 5
 
 	# seed
 	np.random.seed(args.seed)

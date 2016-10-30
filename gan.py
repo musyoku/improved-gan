@@ -20,6 +20,21 @@ def to_object(dict):
 		setattr(obj, key, value)
 	return obj
 
+class Sequential(sequential.Sequential):
+
+	def __call__(self, x, test=False):
+		activations = []
+		for i, link in enumerate(self.links):
+			if isinstance(link, sequential.function.dropout):
+				x = link(x, train=not test)
+			elif isinstance(link, chainer.links.BatchNormalization):
+				x = link(x, test=test)
+			else:
+				x = link(x)
+				if isinstance(link, sequential.function.ActivationFunction):
+					activations.append(x)
+		return x, activations
+
 class DiscriminatorParams(Params):
 	def __init__(self):
 		self.ndim_input = 28 * 28
@@ -76,7 +91,7 @@ class GradientClipping(object):
 class Chain(chainer.Chain):
 
 	def add_sequence(self, sequence, name_prefix="layer"):
-		if isinstance(sequence, sequential.Sequential) == False:
+		if isinstance(sequence, Sequential) == False:
 			raise Exception()
 		for i, link in enumerate(sequence.links):
 			if isinstance(link, chainer.link.Link):
@@ -119,13 +134,17 @@ class GAN():
 
 	def build_discriminator(self):
 		params = self.params_discriminator
+		model = Sequential()
+		model.from_dict(params["model"])
 		self.discriminator = Discriminator()
-		self.discriminator.add_model(sequential.from_dict(params["model"]))
+		self.discriminator.add_model(model)
 
 	def build_generator(self):
 		params = self.params_generator
+		model = Sequential()
+		model.from_dict(params["model"])
 		self.generator = Generator()
-		self.generator.add_model(sequential.from_dict(params["model"]))
+		self.generator.add_model(model)
 
 	def setup_optimizers(self):
 		config = self.params_discriminator["config"]
@@ -202,17 +221,17 @@ class GAN():
 
 	def generate_x_from_z(self, z_batch, test=False, as_numpy=False):
 		z_batch = self.to_variable(z_batch)
-		x_batch = self.generator(z_batch, test=test)
+		x_batch, _ = self.generator(z_batch, test=test)
 		if as_numpy:
 			return self.to_numpy(x_batch)
 		return x_batch
 
 	def discriminate(self, x_batch, test=False, apply_softmax=True):
 		x_batch = self.to_variable(x_batch)
-		activations = self.discriminator(x_batch, test=test)
+		prob, activations = self.discriminator(x_batch, test=test)
 		if apply_softmax:
-			activations = F.softmax(activations)
-		return activations
+			prob = F.softmax(prob)
+		return prob, activations
 
 	def backprop_discriminator(self, loss):
 		self.zero_grads()

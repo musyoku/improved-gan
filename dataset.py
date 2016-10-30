@@ -14,7 +14,7 @@ def load_binary_images(image_dir):
 		dataset.append(img)
 		f.close()
 		i += 1
-		if i % 100 == 0 or i == len(fs) - 1:
+		if i % 100 == 0 or i == len(fs):
 			sys.stdout.write("\rloading images...({} / {})".format(i, len(fs)))
 	sys.stdout.write("\n")
 	return dataset
@@ -24,10 +24,9 @@ def load_rgb_images(image_dir):
 	fs = os.listdir(image_dir)
 	i = 0
 	for fn in fs:
-		f = open("%s/%s" % (image_dir, fn), "rb")
-		img = np.asarray(Image.open(StringIO(f.read())).convert("RGB"), dtype=np.float32).transpose(2, 0, 1) / 255.0
-		dataset.append(img)
-		f.close()
+		with open("%s/%s" % (image_dir, fn), "rb") as f:
+			img = np.asarray(Image.open(StringIO(f.read())).convert("RGB"), dtype=np.float32).transpose(2, 0, 1) / 255.0
+			dataset.append(img)
 		i += 1
 		if i % 100 == 0 or i == len(fs):
 			sys.stdout.write("\rloading images...({} / {})".format(i, len(fs)))
@@ -40,10 +39,9 @@ def load_rgba_images(image_dir, is_grayscale=True):
 	fs = os.listdir(image_dir)
 	i = 0
 	for fn in fs:
-		f = open("%s/%s" % (image_dir, fn), "rb")
-		img = np.asarray(Image.open(StringIO(f.read())).convert("RGBA"), dtype=np.float32).transpose(2, 0, 1) / 255.0
-		dataset.append(img)
-		f.close()
+		with open("%s/%s" % (image_dir, fn), "rb") as f:
+			img = np.asarray(Image.open(StringIO(f.read())).convert("RGBA"), dtype=np.float32).transpose(2, 0, 1) / 255.0
+			dataset.append(img)
 		i += 1
 		if i % 100 == 0 or i == len(fs):
 			sys.stdout.write("\rloading images...({} / {})".format(i, len(fs)))

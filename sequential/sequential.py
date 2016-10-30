@@ -115,10 +115,6 @@ class Sequential(object):
 			self.links.append(link)
 			self._layers.append(layer)
 
-
-	def __call__(self, x, test=False):
-		return self.links(x, test)
-
 	def __call__(self, x, test=False):
 		for i, link in enumerate(self.links):
 			if isinstance(link, function.dropout):

@@ -82,7 +82,7 @@ class Chain(chainer.Chain):
 			if isinstance(link, chainer.link.Link):
 				self.add_link("{}_{}".format(name_prefix, i), link)
 
-class DDGM():
+class GAN():
 
 	def __init__(self, params_energy_model, params_generative_model):
 		self.params_energy_model = copy.deepcopy(params_energy_model)

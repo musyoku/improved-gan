@@ -83,19 +83,19 @@ def main():
 
 			# train discriminator
 			discrimination_true, activations_true = gan.discriminate(x_true, apply_softmax=False)
-			discrimination_fake, activations_fake = gan.discriminate(x_fake, apply_softmax=False)
+			discrimination_fake, _ = gan.discriminate(x_fake, apply_softmax=False)
 			loss_discriminator = F.softmax_cross_entropy(discrimination_true, class_true) + F.softmax_cross_entropy(discrimination_fake, class_fake)
+			gan.backprop_discriminator(loss_discriminator)
+
+			# train generator
+			x_fake = gan.generate_x(batchsize_fake)
+			discrimination_fake, activations_fake = gan.discriminate(x_fake, apply_softmax=False)
+			loss_generator = F.softmax_cross_entropy(discrimination_fake, class_true)
 			# feature matching
 			if True:
 				features_true = activations_true[-1]
 				features_fake = activations_fake[-1]
 				loss_discriminator += F.mean_squared_error(features_true, features_fake)
-			gan.backprop_discriminator(loss_discriminator)
-
-			# train generator
-			x_fake = gan.generate_x(batchsize_fake)
-			discrimination_fake, _ = gan.discriminate(x_fake, apply_softmax=False)
-			loss_generator = F.softmax_cross_entropy(discrimination_fake, class_true)
 			gan.backprop_generator(loss_generator)
 
 			sum_loss_discriminator += float(loss_discriminator.data)

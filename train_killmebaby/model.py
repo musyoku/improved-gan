@@ -57,8 +57,8 @@ else:
 	# model.add(BatchNormalization(192))
 	model.add(dropout())
 	model.add(Convolution2D(192, 192, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
-	model.add(reshape_1d())
-	model.add(MinibatchDiscrimination(None, num_kernels=100, ndim_kernel=5))
+	# model.add(reshape_1d())
+	# model.add(MinibatchDiscrimination(None, num_kernels=100, ndim_kernel=5))
 	model.add(Linear(None, 2, use_weightnorm=config.use_weightnorm))
 	model.build()
 

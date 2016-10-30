@@ -1,6 +1,7 @@
 import os
 import chainer
 import sequential
+from link import MinibatchDiscrimination
 from chainer import optimizers, serializers
 
 class Chain(chainer.Chain):
@@ -11,6 +12,8 @@ class Chain(chainer.Chain):
 		for i, link in enumerate(sequence.links):
 			if isinstance(link, chainer.link.Link):
 				self.add_link("link_{}".format(i), link)
+			elif isinstance(link, MinibatchDiscrimination):
+				self.add_link("link_{}".format(i), link.T)
 		self.sequence = sequence
 
 	def load(self, filename):

@@ -3,6 +3,15 @@ import chainer
 import link
 import function
 
+def get_weight_initializer(initializer, init_std):
+	if initializer.lower() == "normal":
+		return chainer.initializers.Normal(init_std)
+	if initializer.lower() == "glorotnormal":
+		return chainer.initializers.GlorotNormal(init_std)
+	if initializer.lower() == "henormal":
+		return chainer.initializers.HeNormal(init_std)
+	raise Exception()
+
 class Sequential(object):
 	def __init__(self, weight_initializer="Normal", weight_init_std=1):
 		self._layers = []
@@ -41,13 +50,7 @@ class Sequential(object):
 		return args
 
 	def get_weight_initializer(self):
-		if self.weight_initializer.lower() == "normal":
-			return chainer.initializers.Normal(self.weight_init_std)
-		if self.weight_initializer.lower() == "glorotnormal":
-			return chainer.initializers.GlorotNormal(self.weight_init_std)
-		if self.weight_initializer.lower() == "henormal":
-			return chainer.initializers.HeNormal(self.weight_init_std)
-		raise Exception()
+		return get_weight_initializer(self.weight_initializer.lower(), self.weight_init_std)
 
 	def layer_to_chainer_link(self, layer):
 		if hasattr(layer, "_link"):

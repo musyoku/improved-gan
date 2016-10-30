@@ -6,7 +6,6 @@ from chainer import cuda, Variable, optimizers, serializers, function, optimizer
 from chainer.utils import type_check
 from chainer import functions as F
 from chainer import links as L
-from softplus import softplus
 from params import Params
 import sequential
 from sequential.sequential import get_weight_initializer
@@ -121,12 +120,12 @@ class GAN():
 	def build_discriminator(self):
 		params = self.params_discriminator
 		self.discriminator = Discriminator()
-		self.discriminator.add_sequence(sequential.from_dict(params["model"]))
+		self.discriminator.add_model(sequential.from_dict(params["model"]))
 
 	def build_generator(self):
 		params = self.params_generator
 		self.generator = Generator()
-		self.generator.add_sequence(sequential.from_dict(params["model"]))
+		self.generator.add_model(sequential.from_dict(params["model"]))
 
 	def setup_optimizers(self):
 		config = self.params_discriminator["config"]
@@ -209,6 +208,7 @@ class GAN():
 		return x_batch
 
 	def discriminate(self, x_batch, test=False, apply_softmax=True):
+		x_batch = self.to_variable(x_batch)
 		activations = self.discriminator(x_batch, test=test)
 		if apply_softmax:
 			activations = F.softmax(activations)
@@ -254,18 +254,18 @@ class GAN():
 
 class Generator(Chain):
 
-	def add_sequence(self, sequence):
-		super(Generator, self).add_sequence(sequence)
-		self.sequence = sequence
+	def add_model(self, model):
+		self.add_sequence(model)
+		self.model = model
 
 	def __call__(self, z, test=False):
-		return self.sequence(z, test=test)
+		return self.model(z, test=test)
 
 class Discriminator(Chain):
 
-	def add_sequence(self, sequence):
-		super(Generator, self).add_sequence(sequence)
-		self.sequence = sequence
+	def add_model(self, model):
+		self.add_sequence(model)
+		self.model = model
 
 	def __call__(self, x, test=False):
-		return self.sequence(x, test=test)
+		return self.model(x, test=test)

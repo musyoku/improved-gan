@@ -55,18 +55,18 @@ def main():
 	# init weightnorm layers
 	if discriminator_config.use_weightnorm:
 		print "initializing weight normalization layers of the discriminator ..."
-		x_true = sample_from_data(images, len(images) // 10)
-		gan.discriminator(x_true)
+		x_true = sample_from_data(images, batchsize_true)
+		gan.discriminate(x_true)
 
 	if generator_config.use_weightnorm:
 		print "initializing weight normalization layers of the generator ..."
-		gan.generate_x(len(images) // 10)
+		gan.generate_x(batchsize_fake)
 
 	# classification
 	# 0 -> true sample
 	# 1 -> generated sample
-	class_true = Variable(xp.zeros(batchsize, dtype=np.int32))
-	class_fake = Variable(xp.ones(batchsize, dtype=np.int32))
+	class_true = gan.to_variable(np.zeros(batchsize_true, dtype=np.int32))
+	class_fake = gan.to_variable(np.ones(batchsize_fake, dtype=np.int32))
 
 	# training
 	progress = Progress()
@@ -99,8 +99,8 @@ def main():
 				progress.show(t, n_trains_per_epoch, {})
 
 		progress.show(n_trains_per_epoch, n_trains_per_epoch, {
-			"D": sum_loss_discriminator / n_trains_per_epoch,
-			"G": sum_loss_generator / n_trains_per_epoch,
+			"loss (discriminator)": sum_loss_discriminator / n_trains_per_epoch,
+			"loss (generator)": sum_loss_generator / n_trains_per_epoch,
 		})
 		gan.save(args.model_dir)
 

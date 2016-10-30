@@ -4,7 +4,7 @@ import json, os, sys
 from args import args
 sys.path.append(os.path.split(os.getcwd())[0])
 from params import Params
-from ddgm import GAN, DiscriminatorParams, GeneratorParams, Discriminator, Generator
+from gan import GAN, DiscriminatorParams, GeneratorParams, Discriminator, Generator
 from sequential import Sequential
 from sequential.link import Linear, BatchNormalization, MinibatchDiscrimination
 from sequential.function import Activation, dropout, gaussian_noise, softmax
@@ -102,9 +102,9 @@ else:
 	model.add(Activation(config.nonlinearity))
 	model.add(Linear(None, config.ndim_output, use_weightnorm=config.use_weightnorm))
 	if config.distribution_output == "sigmoid":
-		model.add(sigmoid())
+		model.add(Activation("sigmoid"))
 	if config.distribution_output == "tanh":
-		model.add(tanh())
+		model.add(Activation("tanh"))
 	model.build()
 
 	params = {

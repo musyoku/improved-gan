@@ -1,5 +1,6 @@
 import numpy
 import chainer
+from chainer import functions as F
 import weightnorm
 import util
 
@@ -244,7 +245,7 @@ class BatchNormalization(Link):
 			args["dtype"] = numpy.float16
 		return chainer.links.BatchNormalization(**args)
 
-class MinibatchDiscrimination():
+class MinibatchDiscrimination(Link):
 	def __init__(self, in_size, num_kernels, ndim_kernel=5):
 		self._link = "MinibatchDiscrimination"
 		self.in_size = in_size
@@ -252,14 +253,14 @@ class MinibatchDiscrimination():
 		self.ndim_kernel = ndim_kernel
 
 	def to_link(self):
-		args = self.to_chainer_args()
+		args = {}
 		if hasattr(self, "_initialW"):
 			args["initialW"] = self._initialW
-		self.T = L.Linear(**args)
+		self.T = chainer.links.Linear(self.in_size, self.num_kernels * self.ndim_kernel, **args)
 		return self
 
 	def __call__(self, x):
-		xp = cuda.get_array_module(x.data)
+		xp = chainer.cuda.get_array_module(x.data)
 		batchsize = x.shape[0]
 
 		M = F.reshape(self.T(x), (-1, self.num_kernels, self.ndim_kernel))

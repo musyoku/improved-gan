@@ -95,7 +95,7 @@ def main():
 			if True:
 				features_true = activations_true[-1]
 				features_fake = activations_fake[-1]
-				loss_discriminator += F.mean_squared_error(features_true, features_fake)
+				loss_generator += F.mean_squared_error(features_true, features_fake)
 			gan.backprop_generator(loss_generator)
 
 			sum_loss_discriminator += float(loss_discriminator.data)

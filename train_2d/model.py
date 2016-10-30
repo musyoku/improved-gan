@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import math
-import json, os, sys
+import json, os, sys, copy
 from args import args
 sys.path.append(os.path.split(os.getcwd())[0])
 from params import Params
@@ -34,7 +34,7 @@ else:
 	config.ndim_input = mdim_data
 	config.weight_init_std = 0.05
 	config.weight_initializer = "Normal"
-	config.use_weightnorm = True
+	config.use_weightnorm = False
 	config.nonlinearity = "elu"
 	config.optimizer = "Adam"
 	config.learning_rate = 0.0002

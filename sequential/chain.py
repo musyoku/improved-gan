@@ -4,6 +4,22 @@ import sequential
 from link import MinibatchDiscrimination
 from chainer import optimizers, serializers
 
+def get_optimizer(self, name, lr, momentum=0.9):
+	if name.lower() == "adam":
+		return optimizers.Adam(alpha=lr, beta1=momentum)
+	if name.lower() == "adagrad":
+		return optimizers.AdaGrad(lr=lr)
+	if name.lower() == "adadelta":
+		return optimizers.AdaDelta(rho=momentum)
+	if name.lower() == "nesterov" or name.lower() == "nesterovag":
+		return optimizers.NesterovAG(lr=lr, momentum=momentum)
+	if name.lower() == "rmsprop":
+		return optimizers.RMSprop(lr=lr, alpha=momentum)
+	if name.lower() == "momentumsgd":
+		return optimizers.MomentumSGD(lr=lr, mommentum=mommentum)
+	if name.lower() == "sgd":
+		return optimizers.SGD(lr=lr)
+
 class Chain(chainer.Chain):
 
 	def add_sequence(self, sequence):
@@ -28,24 +44,8 @@ class Chain(chainer.Chain):
 			os.remove(filename)
 		serializers.save_hdf5(filename, self)
 
-	def get_optimizer(self, name, lr, momentum=0.9):
-		if name.lower() == "adam":
-			return optimizers.Adam(alpha=lr, beta1=momentum)
-		if name.lower() == "adagrad":
-			return optimizers.AdaGrad(lr=lr)
-		if name.lower() == "adadelta":
-			return optimizers.AdaDelta(rho=momentum)
-		if name.lower() == "nesterov" or name.lower() == "nesterovag":
-			return optimizers.NesterovAG(lr=lr, momentum=momentum)
-		if name.lower() == "rmsprop":
-			return optimizers.RMSprop(lr=lr, alpha=momentum)
-		if name.lower() == "momentumsgd":
-			return optimizers.MomentumSGD(lr=lr, mommentum=mommentum)
-		if name.lower() == "sgd":
-			return optimizers.SGD(lr=lr)
-
 	def setup_optimizers(self, optimizer_name, lr, momentum=0.9, weight_decay=0, gradient_clipping=0):
-		opt = self.get_optimizer(optimizer_name, lr, momentum)
+		opt = get_optimizer(optimizer_name, lr, momentum)
 		opt.setup(self)
 		if weight_decay > 0:
 			opt.add_hook(chainer.optimizer.WeightDecay(weight_decay))

@@ -8,7 +8,6 @@ from chainer import functions as F
 from chainer import links as L
 from params import Params
 import sequential
-from sequential.sequential import get_weight_initializer
 from sequential.link import MinibatchDiscrimination
 
 class Object(object):
@@ -33,6 +32,7 @@ class Sequential(sequential.Sequential):
 				x = link(x)
 				if isinstance(link, sequential.function.ActivationFunction):
 					activations.append(x)
+
 		return x, activations
 
 class DiscriminatorParams(Params):
@@ -112,22 +112,6 @@ class GAN():
 		self.setup_optimizers()
 		self._gpu = False
 
-	def get_optimizer(self, name, lr, momentum):
-		if name.lower() == "adam":
-			return optimizers.Adam(alpha=lr, beta1=momentum)
-		if name.lower() == "adagrad":
-			return optimizers.AdaGrad(lr=lr)
-		if name.lower() == "adadelta":
-			return optimizers.AdaDelta(rho=momentum)
-		if name.lower() == "nesterov" or name.lower() == "nesterovag":
-			return optimizers.NesterovAG(lr=lr, momentum=momentum)
-		if name.lower() == "rmsprop":
-			return optimizers.RMSprop(lr=lr, alpha=momentum)
-		if name.lower() == "momentumsgd":
-			return optimizers.MomentumSGD(lr=lr, mommentum=mommentum)
-		if name.lower() == "sgd":
-			return optimizers.SGD(lr=lr)
-
 	def build_network(self):
 		self.build_discriminator()
 		self.build_generator()
@@ -148,7 +132,7 @@ class GAN():
 
 	def setup_optimizers(self):
 		config = self.params_discriminator["config"]
-		opt = self.get_optimizer(config.optimizer, config.learning_rate, config.momentum)
+		opt = sequential.chain.get_optimizer(config.optimizer, config.learning_rate, config.momentum)
 		opt.setup(self.discriminator)
 		if config.weight_decay > 0:
 			opt.add_hook(optimizer.WeightDecay(config.weight_decay))
@@ -157,7 +141,7 @@ class GAN():
 		self.optimizer_discriminator = opt
 		
 		config = self.params_generator["config"]
-		opt = self.get_optimizer(config.optimizer, config.learning_rate, config.momentum)
+		opt = sequential.chain.get_optimizer(config.optimizer, config.learning_rate, config.momentum)
 		opt.setup(self.generator)
 		if config.weight_decay > 0:
 			opt.add_hook(optimizer.WeightDecay(config.weight_decay))

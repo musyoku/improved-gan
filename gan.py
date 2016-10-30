@@ -21,11 +21,10 @@ def to_object(dict):
 		setattr(obj, key, value)
 	return obj
 
-class EnergyModelParams(Params):
+class DiscriminatorParams(Params):
 	def __init__(self):
 		self.ndim_input = 28 * 28
 		self.ndim_output = 10
-		self.num_experts = 128
 		self.weight_init_std = 1
 		self.weight_initializer = "Normal"		# Normal or GlorotNormal or HeNormal
 		self.nonlinearity = "elu"
@@ -35,7 +34,7 @@ class EnergyModelParams(Params):
 		self.gradient_clipping = 10
 		self.weight_decay = 0
 
-class GenerativeModelParams(Params):
+class GeneratorParams(Params):
 	def __init__(self):
 		self.ndim_input = 10
 		self.ndim_output = 28 * 28
@@ -122,12 +121,12 @@ class GAN():
 	def build_discriminator(self):
 		params = self.params_discriminator
 		self.discriminator = Discriminator()
-		self.discriminator.add_sequence(sequential.from_dict(params["discriminator"]))
+		self.discriminator.add_sequence(sequential.from_dict(params["model"]))
 
 	def build_generator(self):
 		params = self.params_generator
 		self.generator = Generator()
-		self.generator.add_sequence(sequential.from_dict(params["generator"]))
+		self.generator.add_sequence(sequential.from_dict(params["model"]))
 
 	def setup_optimizers(self):
 		config = self.params_discriminator["config"]
@@ -208,6 +207,12 @@ class GAN():
 		if as_numpy:
 			return self.to_numpy(x_batch)
 		return x_batch
+
+	def discriminate(self, x_batch, test=False, apply_softmax=True):
+		activations = self.discriminator(x_batch, test=test)
+		if apply_softmax:
+			activations = F.softmax(activations)
+		return activations
 
 	def backprop_discriminator(self, loss):
 		self.zero_grads()

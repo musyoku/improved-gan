@@ -20,7 +20,7 @@ image_width = 28
 image_height = image_width
 ndim_latent_code = 10
 
-# specify energy model
+# specify discriminator
 discriminator_sequence_filename = args.model_dir + "/discriminator.json"
 
 if os.path.isfile(discriminator_sequence_filename):
@@ -68,8 +68,9 @@ else:
 
 discriminator_params = params
 
-# specify generative model
+# specify generator
 generator_sequence_filename = args.model_dir + "/generator.json"
+
 if os.path.isfile(generator_sequence_filename):
 	print "loading", generator_sequence_filename
 	with open(generator_sequence_filename, "r") as f:

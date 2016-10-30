@@ -3,11 +3,11 @@ import os, sys, time
 from chainer import cuda
 from chainer import functions as F
 sys.path.append(os.path.split(os.getcwd())[0])
+import sampler
 from progress import Progress
 from model import discriminator_params, generator_params, gan
 from args import args
-from dataset import load_rgb_images
-from plot import plot
+from dataset import binarize_data
 
 class Object(object):
 	pass
@@ -18,27 +18,14 @@ def to_object(dict):
 		setattr(obj, key, value)
 	return obj
 
-def sample_from_data(images, batchsize):
-	example = images[0]
-	height = example.shape[1]
-	width = example.shape[2]
-	x_batch = np.empty((batchsize, 3, height, width), dtype=np.float32)
-	indices = np.random.choice(np.arange(len(images), dtype=np.int32), size=batchsize, replace=True)
-	for j in range(batchsize):
-		data_index = indices[j]
-		x_batch[j] = images[data_index]
-	return x_batch
-
 def main():
-	images = load_rgb_images(args.image_dir)
-
 	# config
 	discriminator_config = to_object(discriminator_params["config"])
 	generator_config = to_object(generator_params["config"])
 
 	# settings
 	max_epoch = 1000
-	n_trains_per_epoch = 500
+	n_trains_per_epoch = 1000
 	batchsize_true = 128
 	batchsize_fake = 128
 	plot_interval = 30
@@ -51,7 +38,7 @@ def main():
 	# init weightnorm layers
 	if discriminator_config.use_weightnorm:
 		print "initializing weight normalization layers of the discriminator ..."
-		x_true = sample_from_data(images, batchsize_true)
+		x_true = sampler.sample_from_gaussian_mixture(batchsize_true * 10, 2, 10)
 		gan.discriminate(x_true)
 
 	if generator_config.use_weightnorm:
@@ -74,7 +61,7 @@ def main():
 		for t in xrange(n_trains_per_epoch):
 
 			# sample from data distribution
-			x_true = sample_from_data(images, batchsize_true)
+			x_true = sampler.sample_from_gaussian_mixture(batchsize_true, 2, 10)
 			x_fake = gan.generate_x(batchsize_fake)
 
 			# train discriminator
@@ -99,9 +86,6 @@ def main():
 			"loss (generator)": sum_loss_generator / n_trains_per_epoch,
 		})
 		gan.save(args.model_dir)
-
-		if epoch % plot_interval == 0 or epoch == 1:
-			plot(filename="epoch_{}_time_{}min".format(epoch, progress.get_total_time()))
 
 if __name__ == "__main__":
 	main()

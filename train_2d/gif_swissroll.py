@@ -1,13 +1,12 @@
 import numpy as np
-import os, sys, time
+import os, sys, time, random, math, pylab
 from chainer import cuda
 from chainer import functions as F
 sys.path.append(os.path.split(os.getcwd())[0])
 from progress import Progress
 from model import discriminator_params, generator_params, gan
 from args import args
-from dataset import load_rgb_images
-from plot import plot
+import sampler
 
 class Object(object):
 	pass
@@ -18,19 +17,20 @@ def to_object(dict):
 		setattr(obj, key, value)
 	return obj
 
-def sample_from_data(images, batchsize):
-	example = images[0]
-	height = example.shape[1]
-	width = example.shape[2]
-	x_batch = np.empty((batchsize, 3, height, width), dtype=np.float32)
-	indices = np.random.choice(np.arange(len(images), dtype=np.int32), size=batchsize, replace=True)
-	for j in range(batchsize):
-		data_index = indices[j]
-		x_batch[j] = images[data_index]
-	return x_batch
+def plot(z, color="blue", s=40):
+	for n in xrange(z.shape[0]):
+		result = pylab.scatter(z[n, 0], z[n, 1], s=s, marker="o", edgecolors="none", color=color)
+	ax = pylab.subplot(111)
+	ax.set_xlim(-4, 4)
+	ax.set_ylim(-4, 4)
+	pylab.xticks(pylab.arange(-4, 5))
+	pylab.yticks(pylab.arange(-4, 5))
 
 def main():
-	images = load_rgb_images(args.image_dir)
+	try:
+		os.mkdir(args.plot_dir)
+	except:
+		pass
 
 	# config
 	discriminator_config = to_object(discriminator_params["config"])
@@ -38,10 +38,13 @@ def main():
 
 	# settings
 	max_epoch = 1000
-	n_trains_per_epoch = 500
-	batchsize_true = 128
-	batchsize_fake = 128
-	plot_interval = 30
+	n_trains_per_epoch = 50
+	batchsize_true = 100
+	batchsize_fake = 100
+	plotsize = 400
+
+	fixed_z = gan.sample_z(plotsize)
+	fixed_target = sampler.sample_from_swiss_roll(600, 2, 10)
 
 	# seed
 	np.random.seed(args.seed)
@@ -51,7 +54,7 @@ def main():
 	# init weightnorm layers
 	if discriminator_config.use_weightnorm:
 		print "initializing weight normalization layers of the discriminator ..."
-		x_true = sample_from_data(images, batchsize_true)
+		x_true = sampler.sample_from_swiss_roll(batchsize_true * 10, 2, 10)
 		gan.discriminate(x_true)
 
 	if generator_config.use_weightnorm:
@@ -74,7 +77,7 @@ def main():
 		for t in xrange(n_trains_per_epoch):
 
 			# sample from data distribution
-			x_true = sample_from_data(images, batchsize_true)
+			x_true = sampler.sample_from_swiss_roll(batchsize_true, 2, 10)
 			x_fake = gan.generate_x(batchsize_fake)
 
 			# train discriminator
@@ -100,8 +103,16 @@ def main():
 		})
 		gan.save(args.model_dir)
 
-		if epoch % plot_interval == 0 or epoch == 1:
-			plot(filename="epoch_{}_time_{}min".format(epoch, progress.get_total_time()))
+		# init
+		fig = pylab.gcf()
+		fig.set_size_inches(8.0, 8.0)
+		pylab.clf()
 
-if __name__ == "__main__":
+		plot(fixed_target, color="#bec3c7", s=20)
+		plot(gan.generate_x_from_z(fixed_z, as_numpy=True, test=True), color="#e84c3d", s=20)
+
+		# save
+		pylab.savefig("{}/{}.png".format(args.plot_dir, 100000 + epoch))
+
+if __name__ == '__main__':
 	main()

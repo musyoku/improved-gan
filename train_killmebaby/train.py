@@ -72,8 +72,7 @@ def main():
 		sum_loss_generator = 0
 
 		for t in xrange(n_trains_per_epoch):
-
-			# sample from data distribution
+			# sample data
 			x_true = sample_from_data(images, batchsize_true)
 			x_fake = gan.generate_x(batchsize_fake)
 
@@ -88,7 +87,7 @@ def main():
 			discrimination_fake, activations_fake = gan.discriminate(x_fake, apply_softmax=False)
 			loss_generator = F.softmax_cross_entropy(discrimination_fake, class_true)
 			# feature matching
-			if False:
+			if True:
 				features_true = activations_true[-1]
 				features_fake = activations_fake[-1]
 				loss_generator += F.mean_squared_error(features_true, features_fake)

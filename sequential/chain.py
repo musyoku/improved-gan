@@ -4,7 +4,7 @@ import sequential
 from link import MinibatchDiscrimination
 from chainer import optimizers, serializers
 
-def get_optimizer(self, name, lr, momentum=0.9):
+def get_optimizer(name, lr, momentum=0.9):
 	if name.lower() == "adam":
 		return optimizers.Adam(alpha=lr, beta1=momentum)
 	if name.lower() == "adagrad":

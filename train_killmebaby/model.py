@@ -34,7 +34,7 @@ else:
 	config = DiscriminatorParams()
 	config.weight_init_std = 0.05
 	config.weight_initializer = "Normal"
-	config.use_weightnorm = True
+	config.use_weightnorm = False
 	config.nonlinearity = "elu"
 	config.optimizer = "Adam"
 	config.learning_rate = 0.0002
@@ -52,13 +52,13 @@ else:
 	model.add(Activation(config.nonlinearity))
 	# model.add(BatchNormalization(96))
 	model.add(dropout())
-	model.add(Convolution2D(96, 192, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	model.add(Convolution2D(96, 256, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
 	model.add(Activation(config.nonlinearity))
-	# model.add(BatchNormalization(192))
+	# model.add(BatchNormalization(256))
 	model.add(dropout())
-	model.add(Convolution2D(192, 192, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
-	# model.add(reshape_1d())
-	# model.add(MinibatchDiscrimination(None, num_kernels=100, ndim_kernel=5))
+	model.add(Convolution2D(256, 1024, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	model.add(reshape_1d())
+	model.add(MinibatchDiscrimination(None, num_kernels=50, ndim_kernel=5))
 	model.add(Linear(None, 2, use_weightnorm=config.use_weightnorm))
 	model.build()
 

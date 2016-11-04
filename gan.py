@@ -8,7 +8,6 @@ from chainer import functions as F
 from chainer import links as L
 from params import Params
 import sequential
-from sequential.link import MinibatchDiscrimination
 
 class Object(object):
 	pass
@@ -32,7 +31,6 @@ class Sequential(sequential.Sequential):
 				x = link(x)
 				if isinstance(link, sequential.function.ActivationFunction):
 					activations.append(x)
-
 		return x, activations
 
 class DiscriminatorParams(Params):
@@ -96,7 +94,7 @@ class Chain(chainer.Chain):
 		for i, link in enumerate(sequence.links):
 			if isinstance(link, chainer.link.Link):
 				self.add_link("{}_{}".format(name_prefix, i), link)
-			elif isinstance(link, MinibatchDiscrimination):
+			elif isinstance(link, sequential.link.MinibatchDiscrimination):
 				self.add_link("{}_{}".format(name_prefix, i), link.T)
 
 class GAN():

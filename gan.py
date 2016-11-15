@@ -23,13 +23,13 @@ class Sequential(sequential.Sequential):
 	def __call__(self, x, test=False):
 		activations = []
 		for i, link in enumerate(self.links):
-			if isinstance(link, sequential.function.dropout):
+			if isinstance(link, sequential.functions.dropout):
 				x = link(x, train=not test)
 			elif isinstance(link, chainer.links.BatchNormalization):
 				x = link(x, test=test)
 			else:
 				x = link(x)
-				if isinstance(link, sequential.function.ActivationFunction):
+				if isinstance(link, sequential.functions.ActivationFunction):
 					activations.append(x)
 		return x, activations
 
@@ -60,96 +60,29 @@ class GeneratorParams(Params):
 		self.gradient_clipping = 10
 		self.weight_decay = 0
 
-def sum_sqnorm(arr):
-	sq_sum = collections.defaultdict(float)
-	for x in arr:
-		with cuda.get_device(x) as dev:
-			x = x.ravel()
-			s = x.dot(x)
-			sq_sum[int(dev)] += s
-	return sum([float(i) for i in six.itervalues(sq_sum)])
-	
-class GradientClipping(object):
-	name = "GradientClipping"
-
-	def __init__(self, threshold):
-		self.threshold = threshold
-
-	def __call__(self, opt):
-		norm = np.sqrt(sum_sqnorm([p.grad for p in opt.target.params()]))
-		if norm == 0:
-			return
-		rate = self.threshold / norm
-		if rate < 1:
-			for param in opt.target.params():
-				grad = param.grad
-				with cuda.get_device(grad):
-					grad *= rate
-
-class Chain(chainer.Chain):
-
-	def add_sequence(self, sequence, name_prefix="layer"):
-		if isinstance(sequence, Sequential) == False:
-			raise Exception()
-		for i, link in enumerate(sequence.links):
-			if isinstance(link, chainer.link.Link):
-				self.add_link("{}_{}".format(name_prefix, i), link)
-			elif isinstance(link, sequential.link.MinibatchDiscrimination):
-				self.add_link("{}_{}".format(name_prefix, i), link.T)
-
 class GAN():
-
 	def __init__(self, params_discriminator, params_generator):
 		self.params_discriminator = copy.deepcopy(params_discriminator)
-		self.params_discriminator["config"] = to_object(params_discriminator["config"])
+		self.config_discriminator = to_object(params_discriminator["config"])
 
 		self.params_generator = copy.deepcopy(params_generator)
-		self.params_generator["config"] = to_object(params_generator["config"])
+		self.config_generator = to_object(params_generator["config"])
 
-		self.build_network()
-		self.setup_optimizers()
-		self._gpu = False
-
-	def build_network(self):
 		self.build_discriminator()
 		self.build_generator()
+		self._gpu = False
 
 	def build_discriminator(self):
-		params = self.params_discriminator
-		model = Sequential()
-		model.from_dict(params["model"])
-		self.discriminator = Discriminator()
-		self.discriminator.add_model(model)
+		self.discriminator = sequential.chain.Chain()
+		self.discriminator.add_sequence(sequential.from_dict(self.params_discriminator["model"]))
+		config = self.config_discriminator
+		self.discriminator.setup_optimizers(config.optimizer, config.learning_rate, config.momentum)
 
 	def build_generator(self):
-		params = self.params_generator
-		model = Sequential()
-		model.from_dict(params["model"])
-		self.generator = Generator()
-		self.generator.add_model(model)
-
-	def setup_optimizers(self):
-		config = self.params_discriminator["config"]
-		opt = sequential.chain.get_optimizer(config.optimizer, config.learning_rate, config.momentum)
-		opt.setup(self.discriminator)
-		if config.weight_decay > 0:
-			opt.add_hook(optimizer.WeightDecay(config.weight_decay))
-		if config.gradient_clipping > 0:
-			opt.add_hook(GradientClipping(config.gradient_clipping))
-		self.optimizer_discriminator = opt
-		
-		config = self.params_generator["config"]
-		opt = sequential.chain.get_optimizer(config.optimizer, config.learning_rate, config.momentum)
-		opt.setup(self.generator)
-		if config.weight_decay > 0:
-			opt.add_hook(optimizer.WeightDecay(config.weight_decay))
-		if config.gradient_clipping > 0:
-			opt.add_hook(GradientClipping(config.gradient_clipping))
-		self.optimizer_generative_model = opt
-
-	def update_laerning_rate(self, lr):
-		self.optimizer_discriminator.alpha = lr
-		self.optimizer_generative_model.alpha = lr
+		self.generator = sequential.chain.Chain()
+		self.generator.add_sequence(sequential.from_dict(self.params_generator["model"]))
+		config = self.config_discriminator
+		self.generator.setup_optimizers(config.optimizer, config.learning_rate, config.momentum)
 
 	def to_gpu(self):
 		self.discriminator.to_gpu()
@@ -190,7 +123,7 @@ class GAN():
 		self.optimizer_generative_model.zero_grads()
 
 	def sample_z(self, batchsize=1):
-		config = self.params_generator["config"]
+		config = self.config_generator
 		ndim_z = config.ndim_input
 		# uniform
 		z_batch = np.random.uniform(-1, 1, (batchsize, ndim_z)).astype(np.float32)
@@ -203,40 +136,29 @@ class GAN():
 
 	def generate_x_from_z(self, z_batch, test=False, as_numpy=False):
 		z_batch = self.to_variable(z_batch)
-		x_batch, _ = self.generator(z_batch, test=test)
+		x_batch, _ = self.generator(z_batch, test=test, return_activations=True)
 		if as_numpy:
 			return self.to_numpy(x_batch)
 		return x_batch
 
 	def discriminate(self, x_batch, test=False, apply_softmax=True):
 		x_batch = self.to_variable(x_batch)
-		prob, activations = self.discriminator(x_batch, test=test)
+		prob, activations = self.discriminator(x_batch, test=test, return_activations=True)
 		if apply_softmax:
 			prob = F.softmax(prob)
 		return prob, activations
 
 	def backprop_discriminator(self, loss):
-		self.zero_grads()
-		loss.backward()
-		self.optimizer_discriminator.update()
+		self.discriminator.backprop(loss)
 
 	def backprop_generator(self, loss):
-		self.zero_grads()
-		loss.backward()
-		self.optimizer_generative_model.update()
+		self.generator.backprop(loss)
 
 	def load(self, dir=None):
 		if dir is None:
 			raise Exception()
-		for attr in vars(self):
-			prop = getattr(self, attr)
-			if isinstance(prop, chainer.Chain) or isinstance(prop, chainer.optimizer.GradientMethod):
-				filename = dir + "/{}.hdf5".format(attr)
-				if os.path.isfile(filename):
-					print "loading {} ...".format(filename)
-					serializers.load_hdf5(filename, prop)
-				else:
-					print filename, "not found."
+		self.generator.load(dir + "/generator.hdf5")
+		self.discriminator.load(dir + "/discriminator.hdf5")
 
 	def save(self, dir=None):
 		if dir is None:
@@ -245,28 +167,5 @@ class GAN():
 			os.mkdir(dir)
 		except:
 			pass
-		for attr in vars(self):
-			prop = getattr(self, attr)
-			if isinstance(prop, chainer.Chain) or isinstance(prop, chainer.optimizer.GradientMethod):
-				filename = dir + "/{}.hdf5".format(attr)
-				if os.path.isfile(filename):
-					os.remove(filename)
-				serializers.save_hdf5(filename, prop)
-
-class Generator(Chain):
-
-	def add_model(self, model):
-		self.add_sequence(model)
-		self.model = model
-
-	def __call__(self, z, test=False):
-		return self.model(z, test=test)
-
-class Discriminator(Chain):
-
-	def add_model(self, model):
-		self.add_sequence(model)
-		self.model = model
-
-	def __call__(self, x, test=False):
-		return self.model(x, test=test)
+		self.generator.save(dir + "/generator.hdf5")
+		self.discriminator.save(dir + "/discriminator.hdf5")

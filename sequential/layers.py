@@ -1,10 +1,11 @@
 import numpy
 import chainer
 import weightnorm
+import links
 import util
 from chainer import functions as F
 
-class Link(object):
+class Layer(object):
 	
 	def __call__(self, x):
 		raise NotImplementedError()
@@ -35,13 +36,13 @@ class Link(object):
 		raise NotImplementedError()
 
 	def dump(self):
-		print "Link: {}".format(self._link)
+		print "layer: {}".format(self._layer)
 		for attr, value in self.__dict__.iteritems():
 			print "	{}: {}".format(attr, value)
 
-class Convolution2D(Link):
+class Convolution2D(Layer):
 	def __init__(self, in_channels, out_channels, ksize, stride=1, pad=0, bias=0, nobias=False, use_cudnn=True, use_weightnorm=False):
-		self._link = "Convolution2D"
+		self._layer = "Convolution2D"
 		self.in_channels = in_channels
 		self.out_channels = out_channels
 		self.ksize = ksize
@@ -64,9 +65,9 @@ class Convolution2D(Link):
 			args["initialW"] = self._initialW
 		return chainer.links.Convolution2D(**args)
 
-class Deconvolution2D(Link):
+class Deconvolution2D(Layer):
 	def __init__(self, in_channels, out_channels, ksize, stride=1, pad=0, bias=0, nobias=False, outsize=None, use_cudnn=True, use_weightnorm=False):
-		self._link = "Deconvolution2D"
+		self._layer = "Deconvolution2D"
 		self.in_channels = in_channels
 		self.out_channels = out_channels
 		self.ksize = ksize
@@ -89,9 +90,9 @@ class Deconvolution2D(Link):
 			args["initialW"] = self._initialW
 		return chainer.links.Deconvolution2D(**args)
 
-class DilatedConvolution2D(Link):
+class DilatedConvolution2D(Layer):
 	def __init__(self, in_channels, out_channels, ksize, stride=1, pad=0, dilate=1, bias=0, nobias=False, use_cudnn=True):
-		self._link = "DilatedConvolution2D"
+		self._layer = "DilatedConvolution2D"
 		self.in_channels = in_channels
 		self.out_channels = out_channels
 		self.ksize = ksize
@@ -108,9 +109,9 @@ class DilatedConvolution2D(Link):
 			args["initialW"] = self._initialW
 		return chainer.links.DilatedConvolution2D(**args)
 
-class EmbedID(Link):
+class EmbedID(Layer):
 	def __init__(self, in_size, out_size, ignore_label=None):
-		self._link = "EmbedID"
+		self._layer = "EmbedID"
 		self.in_size = in_size
 		self.out_size = out_size
 		self.ignore_label = ignore_label
@@ -121,9 +122,9 @@ class EmbedID(Link):
 			args["initialW"] = self._initialW
 		return chainer.links.EmbedID(**args)
 
-class GRU(Link):
+class GRU(Layer):
 	def __init__(self, n_units, n_inputs=None):
-		self._link = "GRU"
+		self._layer = "GRU"
 		self.n_units = n_units
 		self.n_inputs = n_inputs
 
@@ -135,9 +136,9 @@ class GRU(Link):
 			args["inner_init"] = self._inner_init
 		return chainer.links.GRU(**args)
 
-class Linear(Link):
+class Linear(Layer):
 	def __init__(self, in_size, out_size, bias=0, nobias=False, use_weightnorm=False):
-		self._link = "Linear"
+		self._layer = "Linear"
 		self.in_size = in_size
 		self.out_size = out_size
 		self.bias = bias
@@ -155,9 +156,9 @@ class Linear(Link):
 			args["initialW"] = self._initialW
 		return chainer.links.Linear(**args)
 
-class Merge(Link):
+class Merge(Layer):
 	def __init__(self, num_inputs, out_size, bias=0, nobias=False, use_weightnorm=False):
-		self._link = "Merge"
+		self._layer = "Merge"
 		self.num_inputs = num_inputs
 		self.out_size = out_size
 		self.bias = bias
@@ -165,7 +166,7 @@ class Merge(Link):
 		self.use_weightnorm = use_weightnorm
 
 	def to_link(self):
-		link = _Merge()
+		link = links.Merge()
 		for i in xrange(self.num_inputs):
 			args = self.to_chainer_args()
 			del args["use_weightnorm"]
@@ -179,24 +180,9 @@ class Merge(Link):
 			link.append_layer(merge_layer)
 		return link
 
-class _Merge(object):
-	def __init__(self):
-		self.merge_layers = []
-
-	def append_layer(self, layer):
-		self.merge_layers.append(layer)
-
-	def __call__(self, *args):
-		output = 0
-		if len(args) != len(self.merge_layers):
-			raise Exception()
-		for i, data in enumerate(args):
-			output += self.merge_layers[i](data)
-		return output
-
-class Gaussian(Link):
+class Gaussian(Layer):
 	def __init__(self, in_size, out_size, bias=0, nobias=False, use_weightnorm=False):
-		self._link = "Gaussian"
+		self._layer = "Gaussian"
 		self.in_size = in_size
 		self.out_size = out_size
 		self.bias = bias
@@ -210,24 +196,22 @@ class Gaussian(Link):
 		if hasattr(self, "_initialW_mean"):
 			args["initialW"] = getattr(self, "_initialW_mean")
 		if self.use_weightnorm:
-			self.layer_mean = weightnorm.Linear(**args)
+			layer_mean = weightnorm.Linear(**args)
 		else:
-			self.layer_mean = chainer.links.Linear(**args)
+			layer_mean = chainer.links.Linear(**args)
 		# ln_var
 		if hasattr(self, "_initialW_ln_var"):
 			args["initialW"] = getattr(self, "_initialW_ln_var")
 		if self.use_weightnorm:
-			self.layer_ln_var = weightnorm.Linear(**args)
+			layer_ln_var = weightnorm.Linear(**args)
 		else:
-			self.layer_ln_var = chainer.links.Linear(**args)
-		return self
-		
-	def __call__(self, x):
-		return self.layer_mean(x), self.layer_ln_var(x)
+			layer_ln_var = chainer.links.Linear(**args)
 
-class LSTM(Link):
+		return links.Gaussian(layer_mean, layer_ln_var)
+		
+class LSTM(Layer):
 	def __init__(self, in_size, out_size):
-		self._link = "LSTM"
+		self._layer = "LSTM"
 		self.in_size = in_size
 		self.out_size = out_size
 
@@ -243,9 +227,9 @@ class LSTM(Link):
 			args["forget_bias_init"] = self._forget_bias_init
 		return chainer.links.GRU(**args)
 
-class StatelessLSTM(Link):
+class StatelessLSTM(Layer):
 	def __init__(self, in_size, out_size):
-		self._link = "StatelessLSTM"
+		self._layer = "StatelessLSTM"
 		self.in_size = in_size
 		self.out_size = out_size
 
@@ -257,9 +241,9 @@ class StatelessLSTM(Link):
 			args["upward_init"] = self._upward_init
 		return chainer.links.GRU(**args)
 
-class StatefulGRU(Link):
+class StatefulGRU(Layer):
 	def __init__(self, in_size, out_size, bias_init=0):
-		self._link = "StatefulGRU"
+		self._layer = "StatefulGRU"
 		self.in_size = in_size
 		self.out_size = out_size
 		self.bias_init = bias_init
@@ -272,9 +256,9 @@ class StatefulGRU(Link):
 			args["inner_init"] = self._inner_init
 		return chainer.links.GRU(**args)
 
-class StatefulPeepholeLSTM(Link):
+class StatefulPeepholeLSTM(Layer):
 	def __init__(self, in_size, out_size):
-		self._link = "StatefulPeepholeLSTM"
+		self._layer = "StatefulPeepholeLSTM"
 		self.in_size = in_size
 		self.out_size = out_size
 
@@ -282,9 +266,9 @@ class StatefulPeepholeLSTM(Link):
 		args = self.to_chainer_args()
 		return chainer.links.StatefulPeepholeLSTM(**args)
 
-class BatchNormalization(Link):
+class BatchNormalization(Layer):
 	def __init__(self, size, decay=0.9, eps=2e-05, dtype="float32", use_gamma=True, use_beta=True, use_cudnn=True):
-		self._link = "BatchNormalization"
+		self._layer = "BatchNormalization"
 		self.size = size
 		self.decay = decay
 		self.eps = eps
@@ -303,39 +287,21 @@ class BatchNormalization(Link):
 			args["dtype"] = numpy.float16
 		return chainer.links.BatchNormalization(**args)
 
-class MinibatchDiscrimination(Link):
+class MinibatchDiscrimination(Layer):
 	def __init__(self, in_size, num_kernels, ndim_kernel=5, train_weights=True):
-		self._link = "MinibatchDiscrimination"
+		self._layer = "MinibatchDiscrimination"
 		self.in_size = in_size
 		self.num_kernels = num_kernels
 		self.ndim_kernel = ndim_kernel
 		self.train_weights = train_weights
-		self._initial_w = None
 
 	def to_link(self):
-		args = {
-			"nobias": True
-		}
+		args = {}
 		if hasattr(self, "_initialW"):
 			args["initialW"] = self._initialW
-		self.T = chainer.links.Linear(self.in_size, self.num_kernels * self.ndim_kernel, **args)
-		return self
-
-	def __call__(self, x):
-		xp = chainer.cuda.get_array_module(x.data)
-		batchsize = x.shape[0]
-		if self.train_weights == False and self._initial_w is not None:
-			self.T.W.data = self._initial_w
-
-		M = F.reshape(self.T(x), (-1, self.num_kernels, self.ndim_kernel))
-		M = F.expand_dims(M, 3)
-		M_T = F.transpose(M, (3, 1, 2, 0))
-		M, M_T = F.broadcast(M, M_T)
-
-		norm = F.sum(abs(M - M_T), axis=2)
-		eraser = F.broadcast_to(xp.eye(batchsize, dtype=x.dtype).reshape((batchsize, 1, batchsize)), norm.shape)
-		c_b = F.exp(-(norm + 1e6 * eraser))
-		o_b = F.sum(c_b, axis=2)
-		if self.train_weights == False and self._initial_w is None:
-			self._initial_w = self.T.W.data
-		return F.concat((x, o_b), axis=1)
+		return links.MinibatchDiscrimination(
+			chainer.links.Linear(self.in_size, self.num_kernels * self.ndim_kernel, **args), 
+			self.num_kernels,
+			self.ndim_kernel,
+			self.train_weights
+		)

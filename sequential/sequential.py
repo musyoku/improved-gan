@@ -1,16 +1,7 @@
 import copy, json, types
 import chainer
-import link
-import function
-
-def get_weight_initializer(initializer, init_std):
-	if initializer.lower() == "normal":
-		return chainer.initializers.Normal(init_std)
-	if initializer.lower() == "glorotnormal":
-		return chainer.initializers.GlorotNormal(init_std)
-	if initializer.lower() == "henormal":
-		return chainer.initializers.HeNormal(init_std)
-	raise Exception()
+import layers
+import functions
 
 class Sequential(object):
 	def __init__(self, weight_initializer="Normal", weight_init_std=1):
@@ -21,22 +12,22 @@ class Sequential(object):
 		self.weight_init_std = weight_init_std
 
 	def add(self, layer):
-		if isinstance(layer, link.Link) or isinstance(layer, function.Function):
+		if isinstance(layer, layers.Layer) or isinstance(layer, functions.Function):
 			self._layers.append(layer)
-		elif isinstance(layer, function.Activation):
+		elif isinstance(layer, functions.Activation):
 			self._layers.append(layer.to_function())
 		else:
 			raise Exception()
 
 	def layer_from_dict(self, dict):
-		if "_link" in dict:
-			if hasattr(link, dict["_link"]):
+		if "_layer" in dict:
+			if hasattr(layers, dict["_layer"]):
 				args = self.dict_to_layer_init_args(dict)
-				return getattr(link, dict["_link"])(**args)
+				return getattr(layers, dict["_layer"])(**args)
 		if "_function" in dict:
-			if hasattr(function, dict["_function"]):
+			if hasattr(functions, dict["_function"]):
 				args = self.dict_to_layer_init_args(dict)
-				return getattr(function, dict["_function"])(**args)
+				return getattr(functions, dict["_function"])(**args)
 		raise Exception()
 
 	def dict_to_layer_init_args(self, dict):
@@ -50,25 +41,36 @@ class Sequential(object):
 		return args
 
 	def get_weight_initializer(self):
-		return get_weight_initializer(self.weight_initializer.lower(), self.weight_init_std)
+		if self.weight_initializer.lower() == "normal":
+			return chainer.initializers.Normal(self.weight_init_std)
+		if self.weight_initializer.lower() == "glorotnormal":
+			return chainer.initializers.GlorotNormal(self.weight_init_std)
+		if self.weight_initializer.lower() == "henormal":
+			return chainer.initializers.HeNormal(self.weight_init_std)
+		raise Exception()
 
 	def layer_to_chainer_link(self, layer):
-		if hasattr(layer, "_link"):
-			if layer.has_multiple_weights() == True:
-				if isinstance(layer, link.GRU):
-					layer._init = self.get_weight_initializer()
-					layer._inner_init = self.get_weight_initializer()
-				elif isinstance(layer, link.LSTM):
-					layer._lateral_init  = self.get_weight_initializer()
-					layer._upward_init  = self.get_weight_initializer()
-					layer._bias_init = self.get_weight_initializer()
-					layer._forget_bias_init = self.get_weight_initializer()
-				elif isinstance(layer, link.StatelessLSTM):
-					layer._lateral_init  = self.get_weight_initializer()
-					layer._upward_init  = self.get_weight_initializer()
-				elif isinstance(layer, link.StatefulGRU):
-					layer._init = self.get_weight_initializer()
-					layer._inner_init = self.get_weight_initializer()
+		if hasattr(layer, "_layer"):
+			if isinstance(layer, layers.GRU):
+				layer._init = self.get_weight_initializer()
+				layer._inner_init = self.get_weight_initializer()
+			elif isinstance(layer, layers.LSTM):
+				layer._lateral_init  = self.get_weight_initializer()
+				layer._upward_init  = self.get_weight_initializer()
+				layer._bias_init = self.get_weight_initializer()
+				layer._forget_bias_init = self.get_weight_initializer()
+			elif isinstance(layer, layers.StatelessLSTM):
+				layer._lateral_init  = self.get_weight_initializer()
+				layer._upward_init  = self.get_weight_initializer()
+			elif isinstance(layer, layers.StatefulGRU):
+				layer._init = self.get_weight_initializer()
+				layer._inner_init = self.get_weight_initializer()
+			elif isinstance(layer, layers.Gaussian):
+				layer._initialW_mean = self.get_weight_initializer()
+				layer._initialW_ln_var = self.get_weight_initializer()
+			elif isinstance(layer, layers.Merge):
+				for i in xrange(layer.num_inputs):
+					setattr(layer, "_initialW_%d" % i, self.get_weight_initializer())
 			else:
 				layer._initialW = self.get_weight_initializer()
 			return layer.to_link()
@@ -115,12 +117,23 @@ class Sequential(object):
 			self.links.append(link)
 			self._layers.append(layer)
 
-	def __call__(self, x, test=False):
-		for i, link in enumerate(self.links):
-			if isinstance(link, function.dropout):
-				x = link(x, train=not test)
+	def __call__(self, *args, **kwargs):
+		x = None
+		activations = []
+		if "test" not in kwargs:
+			kwargs["test"] = False
+		for link in self.links:
+			if isinstance(link, functions.dropout):
+				x = link(args[0] if x is None else x, train=not kwargs["test"])
 			elif isinstance(link, chainer.links.BatchNormalization):
-				x = link(x, test=test)
+				x = link(args[0] if x is None else x, test=kwargs["test"])
 			else:
-				x = link(x)
+				if x is None:
+					x = link(*args)
+				else:
+					x = link(x)
+					if isinstance(link, functions.ActivationFunction):
+						activations.append(x)
+		if "return_activations" in kwargs and kwargs["return_activations"] == True:
+			return x, activations
 		return x

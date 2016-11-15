@@ -52,3 +52,4 @@ class Progress(object):
 			print "{} - {}m{}".format(prefix, self.get_elapsed_minute(), args)
 		else:
 			sys.stdout.write("\r{} - {}m{}".format(prefix, self.get_elapsed_minute(), args))
+			sys.stdout.flush()

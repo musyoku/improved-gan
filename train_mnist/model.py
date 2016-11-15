@@ -4,9 +4,10 @@ import json, os, sys
 from args import args
 sys.path.append(os.path.split(os.getcwd())[0])
 from params import Params
-from gan import GAN, DiscriminatorParams, GeneratorParams, Discriminator, Generator, Sequential
-from sequential.link import Linear, BatchNormalization, MinibatchDiscrimination
-from sequential.function import Activation, dropout, gaussian_noise, softmax
+from gan import GAN, DiscriminatorParams, GeneratorParams
+from sequential import Sequential
+from sequential.layers import Linear, BatchNormalization, MinibatchDiscrimination
+from sequential.functions import Activation, dropout, gaussian_noise, softmax
 
 # load params.json
 try:

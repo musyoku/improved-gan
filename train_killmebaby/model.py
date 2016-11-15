@@ -4,9 +4,10 @@ import json, os, sys
 from args import args
 sys.path.append(os.path.split(os.getcwd())[0])
 from params import Params
-from gan import GAN, DiscriminatorParams, GeneratorParams, Discriminator, Generator, Sequential
-from sequential.link import Linear, BatchNormalization, Deconvolution2D, Convolution2D, MinibatchDiscrimination
-from sequential.function import Activation, dropout, gaussian_noise, tanh, sigmoid, reshape, reshape_1d
+from gan import GAN, DiscriminatorParams, GeneratorParams
+from sequential import Sequential
+from sequential.layers import Linear, BatchNormalization, Deconvolution2D, Convolution2D, MinibatchDiscrimination
+from sequential.functions import Activation, dropout, gaussian_noise, tanh, sigmoid, reshape, reshape_1d
 from sequential.util import get_conv_padding, get_paddings_of_deconv_layers, get_in_size_of_deconv_layers
 
 # load params.json
@@ -45,18 +46,20 @@ else:
 	# feature extractor
 	model = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
 	model.add(Convolution2D(3, 32, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	model.add(BatchNormalization(32))
 	model.add(Activation(config.nonlinearity))
-	# model.add(BatchNormalization(32))
-	model.add(dropout())
-	model.add(Convolution2D(32, 96, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	# model.add(dropout())
+	model.add(Convolution2D(32, 64, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	model.add(BatchNormalization(64))
 	model.add(Activation(config.nonlinearity))
-	# model.add(BatchNormalization(96))
-	model.add(dropout())
-	model.add(Convolution2D(96, 256, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	# model.add(dropout())
+	model.add(Convolution2D(64, 128, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	model.add(BatchNormalization(128))
 	model.add(Activation(config.nonlinearity))
-	# model.add(BatchNormalization(256))
-	model.add(dropout())
-	model.add(Convolution2D(256, 1024, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	# model.add(dropout())
+	model.add(Convolution2D(128, 256, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
+	model.add(BatchNormalization(256))
+	model.add(Activation(config.nonlinearity))
 	model.add(reshape_1d())
 	model.add(MinibatchDiscrimination(None, num_kernels=50, ndim_kernel=5))
 	model.add(Linear(None, 2, use_weightnorm=config.use_weightnorm))

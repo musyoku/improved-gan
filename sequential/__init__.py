@@ -1,5 +1,6 @@
-import link
-import function
+import links
+import layers
+import functions
 import util
 import chain
 from sequential import *

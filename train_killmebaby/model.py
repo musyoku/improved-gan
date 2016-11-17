@@ -33,12 +33,12 @@ if os.path.isfile(discriminator_sequence_filename):
 			raise Exception("could not load {}".format(discriminator_sequence_filename))
 else:
 	config = DiscriminatorParams()
-	config.weight_init_std = 0.05
+	config.weight_init_std = 0.001
 	config.weight_initializer = "Normal"
 	config.use_weightnorm = False
 	config.nonlinearity = "elu"
 	config.optimizer = "Adam"
-	config.learning_rate = 0.0002
+	config.learning_rate = 0.0001
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0
@@ -93,11 +93,11 @@ else:
 	config.ndim_input = ndim_latent_code
 	config.distribution_output = "sigmoid"
 	config.use_weightnorm = False
-	config.weight_init_std = 0.05
+	config.weight_init_std = 0.001
 	config.weight_initializer = "Normal"
 	config.nonlinearity = "relu"
 	config.optimizer = "Adam"
-	config.learning_rate = 0.0002
+	config.learning_rate = 0.0001
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0
@@ -139,5 +139,6 @@ generator_params = params
 gan = GAN(discriminator_params, generator_params)
 gan.load(args.model_dir)
 
-if args.gpu_enabled == 1:
+if args.gpu_device != -1:
+	cuda.get_device(args.gpu_device).use()
 	gan.to_gpu()

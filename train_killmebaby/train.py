@@ -45,7 +45,7 @@ def main():
 
 	# seed
 	np.random.seed(args.seed)
-	if args.gpu_enabled:
+	if args.gpu_device != -1:
 		cuda.cupy.random.seed(args.seed)
 
 	# init weightnorm layers

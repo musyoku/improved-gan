@@ -2,6 +2,7 @@
 import math
 import json, os, sys
 from args import args
+from chainer import cuda
 sys.path.append(os.path.split(os.getcwd())[0])
 from params import Params
 from gan import GAN, DiscriminatorParams, GeneratorParams

@@ -42,6 +42,8 @@ else:
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0
+	config.use_feature_matching = False
+	config.use_minibatch_discrimination = False
 
 	# feature extractor
 	model = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
@@ -60,8 +62,9 @@ else:
 	model.add(Convolution2D(128, 256, ksize=4, stride=2, pad=1, use_weightnorm=config.use_weightnorm))
 	model.add(BatchNormalization(256))
 	model.add(Activation(config.nonlinearity))
-	model.add(reshape_1d())
-	model.add(MinibatchDiscrimination(None, num_kernels=50, ndim_kernel=5))
+	if config.use_minibatch_discrimination:
+		model.add(reshape_1d())
+		model.add(MinibatchDiscrimination(None, num_kernels=50, ndim_kernel=5, train_weights=True))
 	model.add(Linear(None, 2, use_weightnorm=config.use_weightnorm))
 	model.build()
 

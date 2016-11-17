@@ -15,13 +15,13 @@ class Progress(object):
 
 	def get_progress_bar(self, current_step, total_steps, num_segments=30):
 		str = "["
-		base = total_steps // num_segments
+		base = total_steps / float(num_segments)
 		for seg in xrange(num_segments):
 			if base * (seg + 1) < current_step:
 				str += "="
 			else:
 				if str[-1] == "=":
-					str = str[:-1] + ">"
+					str = str + ">"
 				else:
 					str += "."
 		str = str[:num_segments] + "]"

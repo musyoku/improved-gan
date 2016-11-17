@@ -87,7 +87,7 @@ def main():
 			discrimination_fake, activations_fake = gan.discriminate(x_fake, apply_softmax=False)
 			loss_generator = F.softmax_cross_entropy(discrimination_fake, class_true)
 			# feature matching
-			if True:
+			if discriminator_config.use_feature_matching:
 				features_true = activations_true[-1]
 				features_fake = activations_fake[-1]
 				loss_generator += F.mean_squared_error(features_true, features_fake)

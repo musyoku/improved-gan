@@ -171,11 +171,13 @@ class Merge(Layer):
 			args = self.to_chainer_args()
 			del args["use_weightnorm"]
 			del args["num_inputs"]
-			if hasattr(self, "_initialW_%d" % i):
-				args["initialW"] = getattr(self, "_initialW_%d" % i)
 			if self.use_weightnorm:
+				if hasattr(self, "_initialW"):
+					args["initialV"] = self._initialW
 				merge_layer = weightnorm.Linear(None, **args)
 			else:
+				if hasattr(self, "_initialW_%d" % i):
+					args["initialW"] = getattr(self, "_initialW_%d" % i)
 				merge_layer = chainer.links.Linear(None, **args)
 			link.append_layer(merge_layer)
 		return link

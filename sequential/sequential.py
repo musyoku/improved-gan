@@ -127,6 +127,8 @@ class Sequential(object):
 				x = link(args[0] if x is None else x, train=not kwargs["test"])
 			elif isinstance(link, chainer.links.BatchNormalization):
 				x = link(args[0] if x is None else x, test=kwargs["test"])
+			elif isinstance(link, functions.gaussian_noise):
+				x = link(args[0] if x is None else x, test=kwargs["test"])
 			else:
 				if x is None:
 					x = link(*args)

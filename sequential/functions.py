@@ -157,7 +157,9 @@ class gaussian_noise(Function):
 		self._function = "gaussian_noise"
 		self.std = std
 
-	def __call__(self, x):
+	def __call__(self, x, test=False):
+		if test == True:
+			return x
 		xp = cuda.get_array_module(x.data)
 		ln_var = math.log(self.std ** 2)
 		noise = F.gaussian(Variable(xp.zeros_like(x.data)), Variable(xp.full_like(x.data, ln_var)))

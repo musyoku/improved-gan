@@ -18,9 +18,9 @@ def run_method_1():
 
 	# optimize z
 	class_true = gan.to_variable(np.zeros(batchsize, dtype=np.int32))
-	for n in xrange(50):
+	for n in xrange(5):
 		x_fake = gan.generate_x_from_z(base_z, test=True, as_numpy=False)
-		discrimination_fake, _ = gan.discriminate(x_fake, apply_softmax=False)
+		discrimination_fake, _ = gan.discriminate(x_fake, apply_softmax=False, test=True)
 		cross_entropy = F.softmax_cross_entropy(discrimination_fake, class_true)
 		gan.backprop_generator(cross_entropy)
 		base_z = gan.to_variable(base_z.data + base_z.grad * 0.01)

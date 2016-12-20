@@ -86,9 +86,8 @@ def main():
 			# virtual adversarial training
 			loss_vat = 0
 			if discriminator_config.use_virtual_adversarial_training:
-				loss_vat_true = -F.sum(gan.compute_lds(x_true)) / batchsize_true
-				loss_vat_fake = -F.sum(gan.compute_lds(x_fake)) / batchsize_fake
-				loss_vat = loss_vat_true + loss_vat_fake
+				z = gan.sample_z(batchsize_fake)
+				loss_vat = -F.sum(gan.compute_lds(z)) / batchsize_fake
 				gan.backprop_discriminator(loss_vat)
 				sum_loss_vat += float(loss_vat.data)
 

@@ -12,6 +12,7 @@ def plot(filename="gen"):
 		pass
 
 	x_negative = gan.generate_x(100, test=True, as_numpy=True)
+	x_negative = (x_negative + 1.0) / 2.0
 	visualizer.tile_rgb_images(x_negative.transpose(0, 2, 3, 1), dir=args.plot_dir, filename=filename)
 
 if __name__ == '__main__':

@@ -33,8 +33,8 @@ def main():
 	images = load_rgb_images(args.image_dir)
 
 	# config
-	discriminator_config = to_object(discriminator_params["config"])
-	generator_config = to_object(generator_params["config"])
+	discriminator_config = gan.config_discriminator
+	generator_config = gan.config_generator
 
 	# settings
 	max_epoch = 1000
@@ -70,17 +70,27 @@ def main():
 		progress.start_epoch(epoch, max_epoch)
 		sum_loss_discriminator = 0
 		sum_loss_generator = 0
+		sum_loss_vat = 0
 
 		for t in xrange(n_trains_per_epoch):
 			# sample data
 			x_true = sample_from_data(images, batchsize_true)
-			x_fake = gan.generate_x(batchsize_fake)
+			x_fake = gan.generate_x(batchsize_fake).data 	# unchain
 
 			# train discriminator
 			discrimination_true, activations_true = gan.discriminate(x_true, apply_softmax=False)
 			discrimination_fake, _ = gan.discriminate(x_fake, apply_softmax=False)
 			loss_discriminator = F.softmax_cross_entropy(discrimination_true, class_true) + F.softmax_cross_entropy(discrimination_fake, class_fake)
 			gan.backprop_discriminator(loss_discriminator)
+
+			# virtual adversarial training
+			loss_vat = 0
+			if discriminator_config.use_virtual_adversarial_training:
+				loss_vat_true = -F.sum(gan.compute_lds(x_true)) / batchsize_true
+				loss_vat_fake = -F.sum(gan.compute_lds(x_fake)) / batchsize_fake
+				loss_vat = loss_vat_true + loss_vat_fake
+				gan.backprop_discriminator(loss_vat)
+				sum_loss_vat += float(loss_vat.data)
 
 			# train generator
 			x_fake = gan.generate_x(batchsize_fake)
@@ -101,8 +111,9 @@ def main():
 				progress.show(t, n_trains_per_epoch, {})
 
 		progress.show(n_trains_per_epoch, n_trains_per_epoch, {
-			"loss (discriminator)": sum_loss_discriminator / n_trains_per_epoch,
-			"loss (generator)": sum_loss_generator / n_trains_per_epoch,
+			"loss_d": sum_loss_discriminator / n_trains_per_epoch,
+			"loss_g": sum_loss_generator / n_trains_per_epoch,
+			"loss_vat": sum_loss_vat / n_trains_per_epoch,
 		})
 		gan.save(args.model_dir)
 

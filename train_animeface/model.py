@@ -18,9 +18,9 @@ except:
 	pass
 
 # data
-image_width = 64
+image_width = 96
 image_height = image_width
-ndim_latent_code = 10
+ndim_z = 50
 
 # specify discriminator
 discriminator_sequence_filename = args.model_dir + "/discriminator.json"
@@ -45,6 +45,7 @@ else:
 	config.weight_decay = 0
 	config.use_feature_matching = False
 	config.use_minibatch_discrimination = False
+	config.use_virtual_adversarial_training = True
 
 	discriminator = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
 	discriminator.add(gaussian_noise(std=0.3))
@@ -87,8 +88,8 @@ if os.path.isfile(generator_sequence_filename):
 			raise Exception("could not load {}".format(generator_sequence_filename))
 else:
 	config = GeneratorParams()
-	config.ndim_input = ndim_latent_code
-	config.distribution_output = "sigmoid"
+	config.ndim_input = ndim_z
+	config.distribution_output = "tanh"
 	config.use_weightnorm = False
 	config.weight_init_std = 0.001
 	config.weight_initializer = "Normal"
@@ -101,9 +102,9 @@ else:
 
 	# model
 	# compute projection width
-	input_size = get_in_size_of_deconv_layers(image_width, num_layers=3, ksize=4, stride=2)
+	input_size = get_in_size_of_deconv_layers(image_width, num_layers=4, ksize=4, stride=2)
 	# compute required paddings
-	paddings = get_paddings_of_deconv_layers(image_width, num_layers=3, ksize=4, stride=2)
+	paddings = get_paddings_of_deconv_layers(image_width, num_layers=4, ksize=4, stride=2)
 
 	generator = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
 	generator.add(Linear(config.ndim_input, 512 * input_size ** 2, use_weightnorm=config.use_weightnorm))

@@ -20,7 +20,7 @@ def tile_binary_images(x, dir=None, filename="x"):
 		pylab.axis("off")
 	pylab.savefig("{}/{}.png".format(dir, filename))
 
-def tile_rgb_images(x, dir=None, filename="x"):
+def tile_rgb_images(x, dir=None, filename="x", row=10, col=10):
 	if dir is None:
 		raise Exception()
 	try:
@@ -28,10 +28,10 @@ def tile_rgb_images(x, dir=None, filename="x"):
 	except:
 		pass
 	fig = pylab.gcf()
-	fig.set_size_inches(16.0, 16.0)
+	fig.set_size_inches(col * 2, row * 2)
 	pylab.clf()
-	for m in range(100):
-		pylab.subplot(10, 10, m + 1)
+	for m in range(row * col):
+		pylab.subplot(row, col, m + 1)
 		pylab.imshow(np.clip(x[m], 0, 1), interpolation="none")
 		pylab.axis("off")
 	pylab.savefig("{}/{}.png".format(dir, filename))

@@ -18,11 +18,14 @@ def _load_images(image_dir, convert_to="RGB"):
 			img = np.asarray(Image.open(StringIO(f.read())).convert("RGBA"), dtype=np.float32).transpose(2, 0, 1) / 255.0
 		else:
 			raise Exception()
+
+		img = (img * 2.0) - 1.0
 		dataset.append(img)
 		f.close()
 		i += 1
 		if i % 100 == 0 or i == len(fs):
 			sys.stdout.write("\rloading images...({} / {})".format(i, len(fs)))
+			sys.stdout.flush()
 	sys.stdout.write("\n")
 	return dataset
 

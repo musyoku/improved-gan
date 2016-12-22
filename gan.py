@@ -47,6 +47,7 @@ class DiscriminatorParams(Params):
 		self.weight_decay = 0
 		self.use_feature_matching = False
 		self.use_minibatch_discrimination = False
+		self.use_virtual_adversarial_training = False
 
 class GeneratorParams(Params):
 	def __init__(self):
@@ -155,6 +156,31 @@ class GAN():
 
 	def backprop_generator(self, loss):
 		self.generator.backprop(loss)
+
+	def compute_kld(self, p, q):
+		return F.reshape(F.sum(p * (F.log(p + 1e-16) - F.log(q + 1e-16)), axis=1), (-1, 1))
+
+	def get_unit_vector(self, v):
+		v /= (np.sqrt(np.sum(v ** 2, axis=1)).reshape((-1, 1)) + 1e-16)
+		return v
+
+	def compute_lds(self, z, xi=10, eps=1, test=False):
+		z = self.to_variable(z)
+		x = self.generate_x_from_z(z, test=test)
+		y1, _ = self.discriminate(x, apply_softmax=True)
+		y1 = self.to_variable(y1.data)		# unchain
+		d = self.to_variable(self.get_unit_vector(np.random.normal(size=z.shape).astype(np.float32)))
+		Ip = 1
+		for i in xrange(Ip):
+			x = self.generate_x_from_z(z + xi * d, test=test)
+			y2, _ = self.discriminate(x, apply_softmax=True)
+			kld = F.sum(self.compute_kld(y1, y2))
+			kld.backward()
+			d = self.to_variable(self.get_unit_vector(self.to_numpy(d.grad)))
+		
+		x = self.generate_x_from_z(z + eps * d, test=test).data 	# unchain
+		y2, _ = self.discriminate(x, apply_softmax=True)
+		return -self.compute_kld(y1, y2)
 
 	def load(self, dir=None):
 		if dir is None:

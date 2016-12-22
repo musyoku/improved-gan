@@ -2,9 +2,7 @@ Under :construction:
 
 # Animeface
 
-![image](http://musyoku.github.io/images/post/2016-12-22/compare.jpg)
-[larger image (7MB)](http://musyoku.github.io/images/post/2016-12-22/compare.jpg)
-
+[See result (7MB .jpg)](http://musyoku.github.io/images/post/2016-12-22/compare.jpg)
 
 # Analogies
 

@@ -4,6 +4,7 @@ sys.path.append(os.path.split(os.getcwd())[0])
 import visualizer
 from args import args
 from model import gan
+from dataset import load_rgb_images
 
 def plot(filename="gen"):
 	try:
@@ -11,9 +12,31 @@ def plot(filename="gen"):
 	except:
 		pass
 
-	x_negative = gan.generate_x(100, test=True, as_numpy=True)
-	x_negative = (x_negative + 1.0) / 2.0
-	visualizer.tile_rgb_images(x_negative.transpose(0, 2, 3, 1), dir=args.plot_dir, filename=filename)
+	x_fake = gan.generate_x(100, test=True, as_numpy=True)
+	x_fake = (x_fake + 1.0) / 2.0
+	visualizer.tile_rgb_images(x_fake.transpose(0, 2, 3, 1), dir=args.plot_dir, filename=filename)
+
+def sample_from_data(images, batchsize):
+	example = images[0]
+	height = example.shape[1]
+	width = example.shape[2]
+	x_batch = np.empty((batchsize, 3, height, width), dtype=np.float32)
+	indices = np.random.choice(np.arange(len(images), dtype=np.int32), size=batchsize, replace=True)
+	for j in range(batchsize):
+		data_index = indices[j]
+		x_batch[j] = images[data_index]
+	return x_batch
+
+def plot_original_data(filename="data"):
+	try:
+		os.mkdir(args.plot_dir)
+	except:
+		pass
+
+	images = load_rgb_images(args.image_dir)
+	x_true = sample_from_data(images, 100)
+	x_true = (x_true + 1.0) / 2.0
+	visualizer.tile_rgb_images(x_true.transpose(0, 2, 3, 1), dir=args.plot_dir, filename=filename)
 
 if __name__ == '__main__':
 	plot()

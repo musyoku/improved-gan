@@ -11,8 +11,9 @@ def plot(filename="gen"):
 	except:
 		pass
 
-	x_negative = gan.generate_x(100, test=True, as_numpy=True)
-	visualizer.tile_binary_images(x_negative.reshape((-1, 28, 28)), dir=args.plot_dir, filename=filename)
+	x_fake = gan.generate_x(100, test=True, as_numpy=True)
+	x_fake = (x_fake + 1.0) / 2.0
+	visualizer.tile_binary_images(x_fake.reshape((-1, 28, 28)), dir=args.plot_dir, filename=filename)
 
 if __name__ == "__main__":
 	plot()

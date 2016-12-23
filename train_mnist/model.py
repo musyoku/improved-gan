@@ -2,9 +2,10 @@
 import math
 import json, os, sys
 from args import args
+from chainer import cuda
 sys.path.append(os.path.split(os.getcwd())[0])
 from params import Params
-from gan import GAN, DiscriminatorParams, GeneratorParams
+from gan import GAN, ClassifierParams, GeneratorParams
 from sequential import Sequential
 from sequential.layers import Linear, BatchNormalization, MinibatchDiscrimination
 from sequential.functions import Activation, dropout, gaussian_noise, softmax
@@ -31,36 +32,42 @@ if os.path.isfile(discriminator_sequence_filename):
 		except Exception as e:
 			raise Exception("could not load {}".format(discriminator_sequence_filename))
 else:
-	config = DiscriminatorParams()
+	config = ClassifierParams()
 	config.ndim_input = image_width * image_height
+	config.ndim_output = 10
 	config.weight_init_std = 0.05
 	config.weight_initializer = "Normal"
-	config.use_weightnorm = True
+	config.use_weightnorm = False
 	config.nonlinearity = "elu"
 	config.optimizer = "Adam"
 	config.learning_rate = 0.0002
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0
+	config.use_feature_matching = True
+	config.use_minibatch_discrimination = False
 
-	# feature extractor
-	model = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
-	model.add(Linear(config.ndim_input, 1000, use_weightnorm=config.use_weightnorm))
-	model.add(Activation(config.nonlinearity))
-	model.add(dropout())
-	model.add(Linear(None, 500, use_weightnorm=config.use_weightnorm))
-	model.add(Activation(config.nonlinearity))
-	model.add(dropout())
-	model.add(Linear(None, 250, use_weightnorm=config.use_weightnorm))
-	model.add(Activation(config.nonlinearity))
-	model.add(MinibatchDiscrimination(None, num_kernels=100, ndim_kernel=5))
-	model.add(Linear(None, 2, use_weightnorm=config.use_weightnorm))
+	discriminator = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
+	discriminator.add(Linear(config.ndim_input, 1000, use_weightnorm=config.use_weightnorm))
+	discriminator.add(Activation(config.nonlinearity))
+	discriminator.add(BatchNormalization(1000))
+	discriminator.add(Linear(None, 500, use_weightnorm=config.use_weightnorm))
+	discriminator.add(Activation(config.nonlinearity))
+	discriminator.add(BatchNormalization(500))
+	discriminator.add(Linear(None, 500, use_weightnorm=config.use_weightnorm))
+	discriminator.add(Activation(config.nonlinearity))
+	discriminator.add(BatchNormalization(500))
+	discriminator.add(Linear(None, 250, use_weightnorm=config.use_weightnorm))
+	discriminator.add(Activation(config.nonlinearity))
+	if config.use_minibatch_discrimination:
+		discriminator.add(MinibatchDiscrimination(None, num_kernels=50, ndim_kernel=5))
+	discriminator.add(Linear(None, config.ndim_output, use_weightnorm=config.use_weightnorm))
 	# no need to add softmax() here
-	model.build()
+	discriminator.build()
 
 	params = {
 		"config": config.to_dict(),
-		"model": model.to_dict(),
+		"model": discriminator.to_dict(),
 	}
 
 	with open(discriminator_sequence_filename, "w") as f:
@@ -82,7 +89,7 @@ else:
 	config = GeneratorParams()
 	config.ndim_input = ndim_latent_code
 	config.ndim_output = image_width * image_height
-	config.distribution_output = "sigmoid"
+	config.distribution_output = "tanh"
 	config.use_weightnorm = False
 	config.weight_init_std = 0.05
 	config.weight_initializer = "Normal"
@@ -93,24 +100,24 @@ else:
 	config.gradient_clipping = 10
 	config.weight_decay = 0
 
-	# model
-	model = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
-	model.add(Linear(config.ndim_input, 500, use_weightnorm=config.use_weightnorm))
-	model.add(BatchNormalization(500))
-	model.add(Activation(config.nonlinearity))
-	model.add(Linear(None, 500, use_weightnorm=config.use_weightnorm))
-	model.add(BatchNormalization(500))
-	model.add(Activation(config.nonlinearity))
-	model.add(Linear(None, config.ndim_output, use_weightnorm=config.use_weightnorm))
+	# generator
+	generator = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
+	generator.add(Linear(config.ndim_input, 500, use_weightnorm=config.use_weightnorm))
+	generator.add(BatchNormalization(500))
+	generator.add(Activation(config.nonlinearity))
+	generator.add(Linear(None, 500, use_weightnorm=config.use_weightnorm))
+	generator.add(BatchNormalization(500))
+	generator.add(Activation(config.nonlinearity))
+	generator.add(Linear(None, config.ndim_output, use_weightnorm=config.use_weightnorm))
 	if config.distribution_output == "sigmoid":
-		model.add(Activation("sigmoid"))
+		generator.add(Activation("sigmoid"))
 	if config.distribution_output == "tanh":
-		model.add(Activation("tanh"))
-	model.build()
+		generator.add(Activation("tanh"))
+	generator.build()
 
 	params = {
 		"config": config.to_dict(),
-		"model": model.to_dict(),
+		"model": generator.to_dict(),
 	}
 
 	with open(generator_sequence_filename, "w") as f:
@@ -121,5 +128,6 @@ generator_params = params
 gan = GAN(discriminator_params, generator_params)
 gan.load(args.model_dir)
 
-if args.gpu_enabled == 1:
+if args.gpu_device != -1:
+	cuda.get_device(args.gpu_device).use()
 	gan.to_gpu()

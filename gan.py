@@ -38,7 +38,7 @@ class DiscriminatorParams(Params):
 		self.ndim_input = 28 * 28
 		self.ndim_output = 10
 		self.weight_init_std = 1
-		self.weight_initializer = "Normal"		# Normal or GlorotNormal or HeNormal
+		self.weight_initializer = "Normal"		# Normal, GlorotNormal or HeNormal
 		self.nonlinearity = "elu"
 		self.optimizer = "Adam"
 		self.learning_rate = 0.001
@@ -47,21 +47,35 @@ class DiscriminatorParams(Params):
 		self.weight_decay = 0
 		self.use_feature_matching = False
 		self.use_minibatch_discrimination = False
-		self.use_virtual_adversarial_training = False
 
 class GeneratorParams(Params):
 	def __init__(self):
 		self.ndim_input = 10
 		self.ndim_output = 28 * 28
-		self.distribution_output = "universal"	# universal or sigmoid or tanh
+		self.distribution_output = "universal"	# universal, sigmoid or tanh
 		self.weight_init_std = 1
-		self.weight_initializer = "Normal"		# Normal or GlorotNormal or HeNormal
+		self.weight_initializer = "Normal"		# Normal, GlorotNormal or HeNormal
 		self.nonlinearity = "relu"
 		self.optimizer = "Adam"
 		self.learning_rate = 0.001
 		self.momentum = 0.5
 		self.gradient_clipping = 10
 		self.weight_decay = 0
+
+class ClassifierParams(Params):
+	def __init__(self):
+		self.ndim_input = 28 * 28
+		self.ndim_output = 10 + 1	# additional label
+		self.weight_init_std = 1
+		self.weight_initializer = "Normal"		# Normal, GlorotNormal or HeNormal
+		self.nonlinearity = "elu"
+		self.optimizer = "Adam"
+		self.learning_rate = 0.001
+		self.momentum = 0.5
+		self.gradient_clipping = 10
+		self.weight_decay = 0
+		self.use_feature_matching = False
+		self.use_minibatch_discrimination = False
 
 class GAN():
 	def __init__(self, params_discriminator, params_generator):

@@ -51,6 +51,9 @@ def main():
 		sum_loss_supervised = 0
 		sum_loss_unsupervised = 0
 		sum_loss_adversarial = 0
+		sum_dx_labeled = 0
+		sum_dx_unlabeled = 0
+		sum_dx_generated = 0
 
 		for t in xrange(num_trains_per_epoch):
 			# sample from data distribution
@@ -70,19 +73,29 @@ def main():
 			# logD(x) = logZ(x) - log(Z(x) + 1)
 			# 		  = logZ(x) - log(exp(log(Z(x))) + 1)
 			# 		  = logZ(x) - softplus(logZ(x))
-			log_z_py_x_u = F.logsumexp(py_x_u, axis=1)
-			loss_unsupervised = -F.sum(log_z_py_x_u - F.softplus(log_z_py_x_u)) / batchsize_u	# negative
+			log_zx_u = F.logsumexp(py_x_u, axis=1)
+			log_dx_u = log_zx_u - F.softplus(log_zx_u)
+			dx_u = F.sum(F.exp(log_dx_u)) / batchsize_u
+			loss_unsupervised = -F.sum(log_dx_u) / batchsize_u	# negative
 			py_x_g, _ = gan.discriminate(images_g, apply_softmax=False)
-			log_z_py_x_g = F.logsumexp(py_x_g, axis=1)
-			loss_unsupervised += F.sum(log_z_py_x_g - F.softplus(log_z_py_x_g)) / batchsize_u
+			log_zx_g = F.logsumexp(py_x_g, axis=1)
+			loss_unsupervised += F.sum(F.softplus(log_zx_g)) / batchsize_u
+
+
+			py_x_l, _ = gan.discriminate(images_l, apply_softmax=False)
+			log_zx_l = F.logsumexp(py_x_l, axis=1)
+			log_dx_l = log_zx_l - F.softplus(log_zx_l)
+			dx_l = F.sum(F.exp(log_dx_l)) / batchsize_l
 
 			gan.backprop_discriminator(loss_supervised + loss_unsupervised)
 
 			# adversarial loss
 			images_g = gan.generate_x(batchsize_g)
 			py_x_g, activations_g = gan.discriminate(images_g, apply_softmax=False)
-			log_z_py_x_g = F.logsumexp(py_x_g, axis=1)
-			loss_adversarial = -F.sum(log_z_py_x_g - F.softplus(log_z_py_x_g)) / batchsize_u	# negative
+			log_zx_g = F.logsumexp(py_x_g, axis=1)
+			log_dx_g = log_zx_g - F.softplus(log_zx_g)
+			dx_g = F.sum(F.exp(log_dx_g)) / batchsize_g
+			loss_adversarial = -F.sum(log_dx_g) / batchsize_u	# negative
 
 			# feature matching
 			if discriminator_config.use_feature_matching:
@@ -96,6 +109,9 @@ def main():
 			sum_loss_supervised += float(loss_supervised.data)
 			sum_loss_unsupervised += float(loss_unsupervised.data)
 			sum_loss_adversarial += float(loss_adversarial.data)
+			sum_dx_labeled += float(dx_l.data)
+			sum_dx_unlabeled += float(dx_u.data)
+			sum_dx_generated += float(dx_g.data)
 			if t % 10 == 0:
 				progress.show(t, num_trains_per_epoch, {})
 
@@ -113,9 +129,12 @@ def main():
 		validation_accuracy = sum_accuracy / len(images_l_segments)
 		
 		progress.show(num_trains_per_epoch, num_trains_per_epoch, {
-			"loss_spv": sum_loss_supervised / num_trains_per_epoch,
-			"loss_uspv": sum_loss_unsupervised / num_trains_per_epoch,
-			"loss_adv": sum_loss_adversarial / num_trains_per_epoch,
+			"loss_l": sum_loss_supervised / num_trains_per_epoch,
+			"loss_u": sum_loss_unsupervised / num_trains_per_epoch,
+			"loss_g": sum_loss_adversarial / num_trains_per_epoch,
+			"dx_l": sum_dx_labeled / num_trains_per_epoch,
+			"dx_u": sum_dx_unlabeled / num_trains_per_epoch,
+			"dx_g": sum_dx_generated / num_trains_per_epoch,
 			"accuracy": validation_accuracy,
 		})
 

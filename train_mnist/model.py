@@ -35,12 +35,12 @@ else:
 	config = ClassifierParams()
 	config.ndim_input = image_width * image_height
 	config.ndim_output = 10
-	config.weight_init_std = 0.035
-	config.weight_initializer = "Normal"
+	config.weight_init_std = 1
+	config.weight_initializer = "GlorotNormal"
 	config.use_weightnorm = False
-	config.nonlinearity = "elu"
+	config.nonlinearity = "softplus"
 	config.optimizer = "Adam"
-	config.learning_rate = 0.0002
+	config.learning_rate = 0.001
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0
@@ -50,17 +50,17 @@ else:
 	discriminator = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
 	discriminator.add(gaussian_noise(std=0.3))
 	discriminator.add(Linear(config.ndim_input, 1000, use_weightnorm=config.use_weightnorm))
+	discriminator.add(gaussian_noise(std=0.5))
 	discriminator.add(Activation(config.nonlinearity))
 	# discriminator.add(BatchNormalization(1000))
-	discriminator.add(gaussian_noise(std=0.5))
 	discriminator.add(Linear(None, 500, use_weightnorm=config.use_weightnorm))
+	discriminator.add(gaussian_noise(std=0.5))
 	discriminator.add(Activation(config.nonlinearity))
 	# discriminator.add(BatchNormalization(500))
-	discriminator.add(gaussian_noise(std=0.5))
 	discriminator.add(Linear(None, 250, use_weightnorm=config.use_weightnorm))
+	discriminator.add(gaussian_noise(std=0.5))
 	discriminator.add(Activation(config.nonlinearity))
 	# discriminator.add(BatchNormalization(250))
-	discriminator.add(gaussian_noise(std=0.5))
 	if config.use_minibatch_discrimination:
 		discriminator.add(MinibatchDiscrimination(None, num_kernels=50, ndim_kernel=5))
 	discriminator.add(Linear(None, config.ndim_output, use_weightnorm=config.use_weightnorm))
@@ -93,11 +93,11 @@ else:
 	config.ndim_output = image_width * image_height
 	config.distribution_output = "tanh"
 	config.use_weightnorm = False
-	config.weight_init_std = 0.035
-	config.weight_initializer = "Normal"
+	config.weight_init_std = 1
+	config.weight_initializer = "GlorotNormal"
 	config.nonlinearity = "relu"
 	config.optimizer = "Adam"
-	config.learning_rate = 0.0002
+	config.learning_rate = 0.001
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0

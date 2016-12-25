@@ -36,10 +36,6 @@ code for the [paper](https://arxiv.org/abs/1606.03498)
 
 # Semi-supervised MNIST Classification
 
-| data | # |
-|:--:|:--:|
-| labeled | 100 |
-| unlabeled | 49900 |
-| validation | 10000 |
+![semi_supervised_seed_1](https://musyoku.github.io/images/post/2016-12-22/semi_supervised_seed_1.png)
 
-![accuracy](https://musyoku.github.io/images/post/2016-12-22/accuracy.png?raw=true)
+![semi_supervised_seed_2](https://musyoku.github.io/images/post/2016-12-22/semi_supervised_seed_2.png)

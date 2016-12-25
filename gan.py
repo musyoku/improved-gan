@@ -101,6 +101,10 @@ class GAN():
 		config = self.config_discriminator
 		self.generator.setup_optimizers(config.optimizer, config.learning_rate, config.momentum)
 
+	def update_learning_rate(self, lr):
+		self.discriminator.update_learning_rate(lr)
+		self.generator.update_learning_rate(lr)
+
 	def to_gpu(self):
 		self.discriminator.to_gpu()
 		self.generator.to_gpu()

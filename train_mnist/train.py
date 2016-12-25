@@ -11,6 +11,13 @@ from model import discriminator_params, generator_params, gan
 from args import args
 from plot import plot
 
+def get_learning_rate_for_epoch(epoch):
+	if epoch < 10:
+		return 0.001
+	if epoch < 50:
+		return 0.0003
+	return 0.0001
+
 def main():
 	# load MNIST images
 	images, labels = dataset.load_train_images()
@@ -40,7 +47,7 @@ def main():
 
 	# create semi-supervised split
 	num_validation_data = 10000
-	num_labeled_data = 100
+	num_labeled_data = args.num_labeled
 	if batchsize_l > num_labeled_data:
 		batchsize_l = num_labeled_data
 
@@ -57,6 +64,8 @@ def main():
 		sum_dx_labeled = 0
 		sum_dx_unlabeled = 0
 		sum_dx_generated = 0
+
+		gan.update_learning_rate(get_learning_rate_for_epoch(epoch))
 
 		for t in xrange(num_trains_per_epoch):
 			# sample from data distribution

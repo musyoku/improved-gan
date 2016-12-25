@@ -165,6 +165,18 @@ class Chain(chainer.Chain):
 			opt.add_hook(GradientClipping(gradient_clipping))
 		self.optimizer = opt
 
+	def update_learning_rate(self, lr):
+		if isinstance(self.optimizer, optimizers.Adam):
+			self.optimizer.alpha = lr
+			return
+		if isinstance(self.optimizer, Eve):
+			self.optimizer.alpha = lr
+			return
+		if isinstance(self.optimizer, optimizers.AdaDelta):
+			# AdaDelta has no learning rate
+			return
+		self.optimizer.lr = lr
+
 	def backprop(self, loss):
 		# self.optimizer.zero_grads()
 		# loss.backward()

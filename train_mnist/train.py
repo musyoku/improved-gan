@@ -40,7 +40,7 @@ def main():
 
 	# create semi-supervised split
 	num_validation_data = 10000
-	num_labeled_data = 20
+	num_labeled_data = 100
 	if batchsize_l > num_labeled_data:
 		batchsize_l = num_labeled_data
 

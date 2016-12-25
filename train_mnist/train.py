@@ -40,7 +40,10 @@ def main():
 
 	# create semi-supervised split
 	num_validation_data = 10000
-	num_labeled_data = 100
+	num_labeled_data = 20
+	if batchsize_l > num_labeled_data:
+		batchsize_l = num_labeled_data
+
 	training_images_l, training_labels_l, training_images_u, validation_images, validation_labels = dataset.create_semisupervised(images, labels, num_validation_data, num_labeled_data, discriminator_config.ndim_output, seed=args.seed)
 	print training_labels_l
 
@@ -66,27 +69,30 @@ def main():
 			py_x_l, activations_l = gan.discriminate(images_l, apply_softmax=False)
 			loss_supervised = F.softmax_cross_entropy(py_x_l, gan.to_variable(label_ids_l))
 
+			log_zx_l = F.logsumexp(py_x_l, axis=1)
+			log_dx_l = log_zx_l - F.softplus(log_zx_l)
+			dx_l = F.sum(F.exp(log_dx_l)) / batchsize_l
+
 			# unsupervised loss
-			py_x_u, _ = gan.discriminate(images_u, apply_softmax=False)
 			# D(x) = Z(x) / {Z(x) + 1}, where Z(x) = \sum_{k=1}^K exp(l_k(x))
 			# softplus(x) := log(1 + exp(x))
 			# logD(x) = logZ(x) - log(Z(x) + 1)
 			# 		  = logZ(x) - log(exp(log(Z(x))) + 1)
 			# 		  = logZ(x) - softplus(logZ(x))
+			# 1 - D(x) = 1 / {Z(x) + 1}
+			# log{1 - D(x)} = log1 - log(Z(x) + 1)
+			# 				= -log(exp(log(Z(x))) + 1)
+			# 				= -softplus(logZ(x))
+			py_x_u, _ = gan.discriminate(images_u, apply_softmax=False)
 			log_zx_u = F.logsumexp(py_x_u, axis=1)
 			log_dx_u = log_zx_u - F.softplus(log_zx_u)
 			dx_u = F.sum(F.exp(log_dx_u)) / batchsize_u
-			loss_unsupervised = -F.sum(log_dx_u) / batchsize_u	# negative
+			loss_unsupervised = -F.sum(log_dx_u) / batchsize_u	# minimize negative logD(x)
 			py_x_g, _ = gan.discriminate(images_g, apply_softmax=False)
 			log_zx_g = F.logsumexp(py_x_g, axis=1)
-			loss_unsupervised += F.sum(F.softplus(log_zx_g)) / batchsize_u
+			loss_unsupervised += F.sum(F.softplus(log_zx_g)) / batchsize_u	# minimize negative log{1 - D(x)}
 
-
-			py_x_l, _ = gan.discriminate(images_l, apply_softmax=False)
-			log_zx_l = F.logsumexp(py_x_l, axis=1)
-			log_dx_l = log_zx_l - F.softplus(log_zx_l)
-			dx_l = F.sum(F.exp(log_dx_l)) / batchsize_l
-
+			# update discriminator
 			gan.backprop_discriminator(loss_supervised + loss_unsupervised)
 
 			# adversarial loss
@@ -95,15 +101,19 @@ def main():
 			log_zx_g = F.logsumexp(py_x_g, axis=1)
 			log_dx_g = log_zx_g - F.softplus(log_zx_g)
 			dx_g = F.sum(F.exp(log_dx_g)) / batchsize_g
-			loss_adversarial = -F.sum(log_dx_g) / batchsize_u	# negative
+			loss_adversarial = -F.sum(log_dx_g) / batchsize_u	# minimize negative logD(x)
 
 			# feature matching
 			if discriminator_config.use_feature_matching:
 				features_true = activations_l[-1]
 				features_true.unchain_backward()
+				if batchsize_l != batchsize_g:
+					images_g = gan.generate_x(batchsize_l)
+					_, activations_g = gan.discriminate(images_g, apply_softmax=False)
 				features_fake = activations_g[-1]
 				loss_adversarial += F.mean_squared_error(features_true, features_fake)
 
+			# update generator
 			gan.backprop_generator(loss_adversarial)
 
 			sum_loss_supervised += float(loss_supervised.data)

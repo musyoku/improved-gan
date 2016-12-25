@@ -35,7 +35,7 @@ else:
 	config = ClassifierParams()
 	config.ndim_input = image_width * image_height
 	config.ndim_output = 10
-	config.weight_init_std = 0.05
+	config.weight_init_std = 0.035
 	config.weight_initializer = "Normal"
 	config.use_weightnorm = False
 	config.nonlinearity = "elu"
@@ -50,16 +50,16 @@ else:
 	discriminator = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)
 	discriminator.add(Linear(config.ndim_input, 1000, use_weightnorm=config.use_weightnorm))
 	discriminator.add(Activation(config.nonlinearity))
-	discriminator.add(gaussian_noise(std=0.1))
+	# discriminator.add(BatchNormalization(1000))
+	discriminator.add(gaussian_noise(std=0.05))
 	discriminator.add(Linear(None, 500, use_weightnorm=config.use_weightnorm))
 	discriminator.add(Activation(config.nonlinearity))
-	discriminator.add(gaussian_noise(std=0.1))
-	discriminator.add(Linear(None, 500, use_weightnorm=config.use_weightnorm))
-	discriminator.add(Activation(config.nonlinearity))
-	discriminator.add(gaussian_noise(std=0.1))
+	# discriminator.add(BatchNormalization(500))
+	discriminator.add(gaussian_noise(std=0.05))
 	discriminator.add(Linear(None, 250, use_weightnorm=config.use_weightnorm))
 	discriminator.add(Activation(config.nonlinearity))
-	discriminator.add(gaussian_noise(std=0.1))
+	# discriminator.add(BatchNormalization(250))
+	discriminator.add(gaussian_noise(std=0.05))
 	if config.use_minibatch_discrimination:
 		discriminator.add(MinibatchDiscrimination(None, num_kernels=50, ndim_kernel=5))
 	discriminator.add(Linear(None, config.ndim_output, use_weightnorm=config.use_weightnorm))
@@ -90,9 +90,9 @@ else:
 	config = GeneratorParams()
 	config.ndim_input = ndim_latent_code
 	config.ndim_output = image_width * image_height
-	config.distribution_output = "sigmoid"
+	config.distribution_output = "tanh"
 	config.use_weightnorm = False
-	config.weight_init_std = 0.05
+	config.weight_init_std = 0.035
 	config.weight_initializer = "Normal"
 	config.nonlinearity = "relu"
 	config.optimizer = "Adam"

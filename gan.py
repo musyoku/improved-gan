@@ -65,7 +65,7 @@ class GeneratorParams(Params):
 class ClassifierParams(Params):
 	def __init__(self):
 		self.ndim_input = 28 * 28
-		self.ndim_output = 10 + 1	# additional label
+		self.ndim_output = 10
 		self.weight_init_std = 1
 		self.weight_initializer = "Normal"		# Normal, GlorotNormal or HeNormal
 		self.nonlinearity = "elu"
@@ -171,6 +171,7 @@ class GAN():
 	def backprop_generator(self, loss):
 		self.generator.backprop(loss)
 
+
 	def compute_kld(self, p, q):
 		return F.reshape(F.sum(p * (F.log(p + 1e-16) - F.log(q + 1e-16)), axis=1), (-1, 1))
 
@@ -178,22 +179,19 @@ class GAN():
 		v /= (np.sqrt(np.sum(v ** 2, axis=1)).reshape((-1, 1)) + 1e-16)
 		return v
 
-	def compute_lds(self, z, xi=10, eps=1, test=False):
-		z = self.to_variable(z)
-		x = self.generate_x_from_z(z, test=test)
+	def compute_lds(self, x, xi=10, eps=1, Ip=1):
+		x = self.to_variable(x)
 		y1, _ = self.discriminate(x, apply_softmax=True)
-		y1 = self.to_variable(y1.data)		# unchain
-		d = self.to_variable(self.get_unit_vector(np.random.normal(size=z.shape).astype(np.float32)))
-		Ip = 1
+		y1.unchain_backward()
+		d = self.to_variable(self.get_unit_vector(np.random.normal(size=x.shape).astype(np.float32)))
+		
 		for i in xrange(Ip):
-			x = self.generate_x_from_z(z + xi * d, test=test)
-			y2, _ = self.discriminate(x, apply_softmax=True)
+			y2, _ = self.discriminate(x + xi * d, apply_softmax=True)
 			kld = F.sum(self.compute_kld(y1, y2))
 			kld.backward()
 			d = self.to_variable(self.get_unit_vector(self.to_numpy(d.grad)))
 		
-		x = self.generate_x_from_z(z + eps * d, test=test).data 	# unchain
-		y2, _ = self.discriminate(x, apply_softmax=True)
+		y2, _ = self.discriminate(x + eps * d, apply_softmax=True)
 		return -self.compute_kld(y1, y2)
 
 	def load(self, dir=None):

@@ -72,6 +72,8 @@ def sample_labeled_data(images, labels, batchsize, ndim_x, ndim_y, binarize=True
 		label_id_batch[j] = labels[data_index]
 	if binarize:
 		image_batch = binarize_data(image_batch)
+	# [0, 1] -> [-1, 1]
+	image_batch = image_batch * 2.0 - 1.0
 	return image_batch, label_onehot_batch, label_id_batch
 
 def sample_unlabeled_data(images, batchsize, ndim_x, binarize=True):
@@ -83,4 +85,6 @@ def sample_unlabeled_data(images, batchsize, ndim_x, binarize=True):
 		image_batch[j] = img.reshape((ndim_x,))
 	if binarize:
 		image_batch = binarize_data(image_batch)
+	# [0, 1] -> [-1, 1]
+	image_batch = image_batch * 2.0 - 1.0
 	return image_batch

@@ -10,6 +10,8 @@ code for the [paper](https://arxiv.org/abs/1606.03498)
 
 # Animeface
 
+45,000枚のアニメ顔画像を学習させました。
+
 [See result (7MB .jpg)](http://musyoku.github.io/images/post/2016-12-22/compare.jpg)
 
 ## Analogies

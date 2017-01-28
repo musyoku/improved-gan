@@ -9,15 +9,6 @@ from args import args
 from dataset import load_rgb_images
 from plot import plot
 
-class Object(object):
-	pass
-
-def to_object(dict):
-	obj = Object()
-	for key, value in dict.iteritems():
-		setattr(obj, key, value)
-	return obj
-
 def sample_from_data(images, batchsize):
 	example = images[0]
 	height = example.shape[1]
@@ -38,7 +29,7 @@ def main():
 
 	# settings
 	max_epoch = 1000
-	n_trains_per_epoch = 500
+	num_updates_per_epoch = 500
 	batchsize_true = 128
 	batchsize_fake = 128
 	plot_interval = 5
@@ -58,63 +49,78 @@ def main():
 		print "initializing weight normalization layers of the generator ..."
 		gan.generate_x(batchsize_fake)
 
-	# classification
-	# 0 -> true sample
-	# 1 -> generated sample
-	class_true = gan.to_variable(np.zeros(batchsize_true, dtype=np.int32))
-	class_fake = gan.to_variable(np.ones(batchsize_fake, dtype=np.int32))
-
 	# training
 	progress = Progress()
-	for epoch in xrange(1, max_epoch):
+	for epoch in xrange(1, max_epoch + 1):
 		progress.start_epoch(epoch, max_epoch)
-		sum_loss_discriminator = 0
-		sum_loss_generator = 0
-		sum_loss_vat = 0
+		sum_loss_unsupervised = 0
+		sum_loss_adversarial = 0
+		sum_dx_unlabeled = 0
+		sum_dx_generated = 0
 
-		for t in xrange(n_trains_per_epoch):
+		for t in xrange(num_updates_per_epoch):
 			# sample data
 			x_true = sample_from_data(images, batchsize_true)
-			x_fake = gan.generate_x(batchsize_fake).data 	# unchain
-
-			# train discriminator
-			discrimination_true, activations_true = gan.discriminate(x_true, apply_softmax=False)
-			discrimination_fake, _ = gan.discriminate(x_fake, apply_softmax=False)
-			loss_discriminator = F.softmax_cross_entropy(discrimination_true, class_true) + F.softmax_cross_entropy(discrimination_fake, class_fake)
-			gan.backprop_discriminator(loss_discriminator)
-
-			# virtual adversarial training
-			loss_vat = 0
-			if discriminator_config.use_virtual_adversarial_training:
-				z = gan.sample_z(batchsize_fake)
-				loss_vat = -F.sum(gan.compute_lds(z)) / batchsize_fake
-				gan.backprop_discriminator(loss_vat)
-				sum_loss_vat += float(loss_vat.data)
-
-			# train generator
 			x_fake = gan.generate_x(batchsize_fake)
-			discrimination_fake, activations_fake = gan.discriminate(x_fake, apply_softmax=False)
-			loss_generator = F.softmax_cross_entropy(discrimination_fake, class_true)
+			x_fake.unchain_backward()
+
+			# unsupervised loss
+			# D(x) = Z(x) / {Z(x) + 1}, where Z(x) = \sum_{k=1}^K exp(l_k(x))
+			# softplus(x) := log(1 + exp(x))
+			# logD(x) = logZ(x) - log(Z(x) + 1)
+			# 		  = logZ(x) - log(exp(log(Z(x))) + 1)
+			# 		  = logZ(x) - softplus(logZ(x))
+			# 1 - D(x) = 1 / {Z(x) + 1}
+			# log{1 - D(x)} = log1 - log(Z(x) + 1)
+			# 				= -log(exp(log(Z(x))) + 1)
+			# 				= -softplus(logZ(x))
+			log_zx_u, activations_u = gan.discriminate(x_true, apply_softmax=False)
+			log_dx_u = log_zx_u - F.softplus(log_zx_u)
+			dx_u = F.sum(F.exp(log_dx_u)) / batchsize_true
+			loss_unsupervised = -F.sum(log_dx_u) / batchsize_true	# minimize negative logD(x)
+			py_x_g, _ = gan.discriminate(x_fake, apply_softmax=False)
+			log_zx_g = F.logsumexp(py_x_g, axis=1)
+			loss_unsupervised += F.sum(F.softplus(log_zx_g)) / batchsize_true	# minimize negative log{1 - D(x)}
+
+			# update discriminator
+			gan.backprop_discriminator(loss_unsupervised)
+
+			sum_loss_unsupervised += float(loss_unsupervised.data)
+			sum_dx_unlabeled += float(dx_u.data)
+
+			# generator loss
+			x_fake = gan.generate_x(batchsize_fake)
+			log_zx_g, activations_g = gan.discriminate(x_fake, apply_softmax=False)
+			log_dx_g = log_zx_g - F.softplus(log_zx_g)
+			dx_g = F.sum(F.exp(log_dx_g)) / batchsize_fake
+			loss_generator = -F.sum(log_dx_g) / batchsize_true	# minimize negative logD(x)
 
 			# feature matching
 			if discriminator_config.use_feature_matching:
-				features_true = activations_true[-1]
-				features_fake = activations_fake[-1]
+				features_true = activations_u[-1]
+				features_true.unchain_backward()
+				if batchsize_true != batchsize_fake:
+					x_fake = gan.generate_x(batchsize_true)
+					_, activations_g = gan.discriminate(x_fake, apply_softmax=False)
+				features_fake = activations_g[-1]
 				loss_generator += F.mean_squared_error(features_true, features_fake)
-				
+
+			# update generator
 			gan.backprop_generator(loss_generator)
 
-			sum_loss_discriminator += float(loss_discriminator.data)
-			sum_loss_generator += float(loss_generator.data)
+			sum_loss_adversarial += float(loss_generator.data)
+			sum_dx_generated += float(dx_g.data)
 			if t % 10 == 0:
-				progress.show(t, n_trains_per_epoch, {})
+				progress.show(t, num_updates_per_epoch, {})
 
-		progress.show(n_trains_per_epoch, n_trains_per_epoch, {
-			"loss_d": sum_loss_discriminator / n_trains_per_epoch,
-			"loss_g": sum_loss_generator / n_trains_per_epoch,
-			"loss_vat": sum_loss_vat / n_trains_per_epoch,
-		})
 		gan.save(args.model_dir)
+
+		progress.show(num_updates_per_epoch, num_updates_per_epoch, {
+			"loss_u": sum_loss_unsupervised / num_updates_per_epoch,
+			"loss_g": sum_loss_adversarial / num_updates_per_epoch,
+			"dx_u": sum_dx_unlabeled / num_updates_per_epoch,
+			"dx_g": sum_dx_generated / num_updates_per_epoch,
+		})
 
 		if epoch % plot_interval == 0 or epoch == 1:
 			plot(filename="epoch_{}_time_{}min".format(epoch, progress.get_total_time()))

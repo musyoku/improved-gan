@@ -63,7 +63,7 @@ else:
 	if config.use_minibatch_discrimination:
 		discriminator.add(reshape_1d())
 		discriminator.add(MinibatchDiscrimination(None, num_kernels=50, ndim_kernel=5, train_weights=True))
-	discriminator.add(Linear(None, 2, use_weightnorm=config.use_weightnorm))
+	discriminator.add(Linear(None, 1, use_weightnorm=config.use_weightnorm))
 
 	params = {
 		"config": config.to_dict(),

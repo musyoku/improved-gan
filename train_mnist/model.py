@@ -32,7 +32,7 @@ if os.path.isfile(discriminator_sequence_filename):
 		except Exception as e:
 			raise Exception("could not load {}".format(discriminator_sequence_filename))
 else:
-	config = ClassifierParams()
+	config = DiscriminatorParams()
 	config.ndim_input = image_width * image_height
 	config.ndim_output = 10
 	config.weight_init_std = 1
@@ -44,7 +44,7 @@ else:
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0
-	config.use_feature_matching = True
+	config.use_feature_matching = False
 	config.use_minibatch_discrimination = False
 
 	discriminator = Sequential(weight_initializer=config.weight_initializer, weight_init_std=config.weight_init_std)

@@ -62,21 +62,6 @@ class GeneratorParams(Params):
 		self.gradient_clipping = 10
 		self.weight_decay = 0
 
-class ClassifierParams(Params):
-	def __init__(self):
-		self.ndim_input = 28 * 28
-		self.ndim_output = 10
-		self.weight_init_std = 1
-		self.weight_initializer = "Normal"		# Normal, GlorotNormal or HeNormal
-		self.nonlinearity = "elu"
-		self.optimizer = "Adam"
-		self.learning_rate = 0.001
-		self.momentum = 0.5
-		self.gradient_clipping = 10
-		self.weight_decay = 0
-		self.use_feature_matching = False
-		self.use_minibatch_discrimination = False
-
 class GAN():
 	def __init__(self, params_discriminator, params_generator):
 		self.params_discriminator = copy.deepcopy(params_discriminator)

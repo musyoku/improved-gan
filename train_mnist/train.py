@@ -60,7 +60,7 @@ def main():
 		progress.start_epoch(epoch, max_epoch)
 		sum_loss_supervised = 0
 		sum_loss_unsupervised = 0
-		sum_loss_adversarial = 0
+		sum_loss_generator = 0
 		sum_dx_labeled = 0
 		sum_dx_unlabeled = 0
 		sum_dx_generated = 0
@@ -127,7 +127,7 @@ def main():
 
 			sum_loss_supervised += float(loss_supervised.data)
 			sum_loss_unsupervised += float(loss_unsupervised.data)
-			sum_loss_adversarial += float(loss_adversarial.data)
+			sum_loss_generator += float(loss_adversarial.data)
 			sum_dx_labeled += float(dx_l.data)
 			sum_dx_unlabeled += float(dx_u.data)
 			sum_dx_generated += float(dx_g.data)
@@ -150,7 +150,7 @@ def main():
 		progress.show(num_trains_per_epoch, num_trains_per_epoch, {
 			"loss_l": sum_loss_supervised / num_trains_per_epoch,
 			"loss_u": sum_loss_unsupervised / num_trains_per_epoch,
-			"loss_g": sum_loss_adversarial / num_trains_per_epoch,
+			"loss_g": sum_loss_generator / num_trains_per_epoch,
 			"dx_l": sum_dx_labeled / num_trains_per_epoch,
 			"dx_u": sum_dx_unlabeled / num_trains_per_epoch,
 			"dx_g": sum_dx_generated / num_trains_per_epoch,

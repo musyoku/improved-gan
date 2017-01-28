@@ -5,7 +5,7 @@ from args import args
 from chainer import cuda
 sys.path.append(os.path.split(os.getcwd())[0])
 from params import Params
-from gan import GAN, ClassifierParams, GeneratorParams
+from gan import GAN, DiscriminatorParams, GeneratorParams
 from sequential import Sequential
 from sequential.layers import Linear, BatchNormalization, MinibatchDiscrimination
 from sequential.functions import Activation, dropout, gaussian_noise, softmax
